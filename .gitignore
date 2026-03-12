@@ -1,0 +1,11 @@
+.venv/
+outputs/
+.agents/skills
+.claude/
+CLAUDE.md
+skills-lock.json
+.DS_Store
+.agent/skills/frontend-design
+.agent/skills/mcp-integration
+resume/base_resume.docx
+resume/DevOps.docx

@@ -1,0 +1,2601 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Resume Tailor</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=DM+Sans:wght@300;400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      :root {
+        --bg: #0a0a0f;
+        --surface: #111118;
+        --surface2: #18181f;
+        --surface3: #1e1e28;
+        --border: #2a2a38;
+        --border-bright: #3d3d52;
+        --text: #e8e8f0;
+        --text-muted: #6b6b80;
+        --text-dim: #4a4a60;
+        --accent: #6c63ff;
+        --accent-soft: rgba(108, 99, 255, 0.15);
+        --accent-glow: rgba(108, 99, 255, 0.3);
+        --green: #22c55e;
+        --green-soft: rgba(34, 197, 94, 0.12);
+        --red: #ef4444;
+        --red-soft: rgba(239, 68, 68, 0.12);
+        --amber: #f59e0b;
+        --amber-soft: rgba(245, 158, 11, 0.12);
+        --pipeline: #a78bfa;
+        --pipeline-soft: rgba(167, 139, 250, 0.12);
+        --pipeline-glow: rgba(167, 139, 250, 0.3);
+        --radius: 10px;
+        --radius-sm: 6px;
+        --font-sans: "DM Sans", sans-serif;
+        --font-mono: "JetBrains Mono", monospace;
+        --transition: 0.18s ease;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--font-sans);
+        font-size: 14px;
+        line-height: 1.6;
+        min-height: 100vh;
+      }
+
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background-image:
+          linear-gradient(rgba(108, 99, 255, 0.03) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(108, 99, 255, 0.03) 1px, transparent 1px);
+        background-size: 40px 40px;
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 0 1.5rem 6rem;
+        position: relative;
+        z-index: 1;
+      }
+
+      /* ── HEADER ── */
+      .header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1.75rem 0 1.5rem;
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 2rem;
+      }
+      .logo {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+      }
+      .logo-icon {
+        width: 28px;
+        height: 28px;
+        background: linear-gradient(135deg, var(--accent), #a78bfa);
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+      }
+      .logo-text {
+        font-family: var(--font-mono);
+        font-size: 0.9rem;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        color: var(--text);
+      }
+      .logo-text span {
+        color: var(--accent);
+      }
+      .header-right {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+      }
+
+      /* ── STATUS PILL ── */
+      .status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        font-family: var(--font-mono);
+        font-size: 0.65rem;
+        font-weight: 500;
+        padding: 0.3rem 0.7rem;
+        border-radius: 9999px;
+        border: 1px solid var(--border);
+        color: var(--text-muted);
+        background: var(--surface);
+        transition: all var(--transition);
+      }
+      .status-pill .dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--text-dim);
+        transition: background var(--transition);
+      }
+      .status-pill.online {
+        color: var(--green);
+        border-color: rgba(34, 197, 94, 0.35);
+        background: var(--green-soft);
+      }
+      .status-pill.online .dot {
+        background: var(--green);
+        box-shadow: 0 0 6px var(--green);
+      }
+
+      /* ── SECTION LABEL ── */
+      .label {
+        font-family: var(--font-mono);
+        font-size: 0.6rem;
+        font-weight: 600;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--text-dim);
+        margin-bottom: 0.6rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      .label::after {
+        content: "";
+        flex: 1;
+        height: 1px;
+        background: var(--border);
+      }
+      .section {
+        margin-top: 1.75rem;
+      }
+
+      /* ── CARD ── */
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 1.1rem 1.25rem;
+        transition: border-color var(--transition);
+      }
+      .card:hover {
+        border-color: var(--border-bright);
+      }
+
+      /* ── RESUME CARD ── */
+      .resume-card-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+      }
+      .resume-icon {
+        font-size: 1.5rem;
+        flex-shrink: 0;
+      }
+      .resume-info {
+        flex: 1;
+      }
+      .resume-name {
+        font-family: var(--font-mono);
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: var(--text);
+      }
+      .resume-meta {
+        font-size: 0.72rem;
+        color: var(--text-muted);
+        margin-top: 0.1rem;
+        font-family: var(--font-mono);
+      }
+      .resume-actions {
+        display: flex;
+        gap: 0.4rem;
+      }
+      .resume-preview {
+        display: none;
+        margin-top: 0.9rem;
+        padding-top: 0.9rem;
+        border-top: 1px solid var(--border);
+        font-family: var(--font-mono);
+        font-size: 0.68rem;
+        line-height: 1.7;
+        color: var(--text-muted);
+        white-space: pre-wrap;
+        max-height: 140px;
+        overflow-y: auto;
+      }
+      .resume-preview.open {
+        display: block;
+      }
+
+      /* ── DROP ZONE ── */
+      .drop-zone {
+        border: 2px dashed var(--border);
+        border-radius: var(--radius);
+        padding: 2.5rem 1.5rem;
+        text-align: center;
+        cursor: pointer;
+        transition: all var(--transition);
+        background: var(--surface);
+      }
+      .drop-zone:hover,
+      .drop-zone.over {
+        border-color: var(--accent);
+        background: var(--accent-soft);
+      }
+      .drop-zone-icon {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+        opacity: 0.4;
+      }
+      .drop-zone p {
+        font-size: 0.82rem;
+        color: var(--text-muted);
+        margin: 0.2rem 0;
+      }
+      .drop-zone strong {
+        color: var(--text);
+        font-weight: 500;
+      }
+      .drop-zone .link {
+        color: var(--accent);
+        cursor: pointer;
+        text-decoration: underline;
+      }
+
+      /* ── MODEL ROW ── */
+      .model-row {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+      }
+
+      /* Custom model picker */
+      .model-picker {
+        position: relative;
+        flex: 1;
+      }
+      .model-picker-btn {
+        width: 100%;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        color: var(--text);
+        font-family: var(--font-mono);
+        font-size: 0.78rem;
+        padding: 0.55rem 2.2rem 0.55rem 0.75rem;
+        text-align: left;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        transition:
+          border-color var(--transition),
+          box-shadow var(--transition);
+        position: relative;
+      }
+      .model-picker-btn::after {
+        content: "";
+        position: absolute;
+        right: 0.75rem;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 12px;
+        height: 8px;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b6b80' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-size: contain;
+        flex-shrink: 0;
+        pointer-events: none;
+      }
+      .model-picker-btn:hover,
+      .model-picker-btn.open {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px var(--accent-glow);
+      }
+      .model-picker-label {
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .model-picker-tags {
+        display: flex;
+        gap: 0.3rem;
+        flex-shrink: 0;
+      }
+
+      .model-dropdown {
+        display: none;
+        position: absolute;
+        top: calc(100% + 4px);
+        left: 0;
+        right: 0;
+        background: var(--surface2);
+        border: 1px solid var(--border-bright);
+        border-radius: var(--radius);
+        z-index: 50;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+        overflow: hidden;
+        max-height: 280px;
+        overflow-y: auto;
+      }
+      .model-dropdown.open {
+        display: block;
+      }
+      .model-opt {
+        padding: 0.6rem 0.85rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        border-bottom: 1px solid var(--border);
+        transition: background var(--transition);
+      }
+      .model-opt:last-child {
+        border-bottom: none;
+      }
+      .model-opt:hover,
+      .model-opt.selected {
+        background: var(--surface3);
+      }
+      .model-opt-id {
+        font-family: var(--font-mono);
+        font-size: 0.75rem;
+        color: var(--text);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        flex: 1;
+      }
+      .model-opt-tags {
+        display: flex;
+        gap: 0.3rem;
+        flex-shrink: 0;
+      }
+
+      .mtag {
+        font-family: var(--font-mono);
+        font-size: 0.58rem;
+        font-weight: 600;
+        padding: 0.1rem 0.4rem;
+        border-radius: 4px;
+        white-space: nowrap;
+      }
+      .mtag-mac {
+        background: rgba(251, 191, 36, 0.15);
+        color: #fbbf24;
+        border: 1px solid rgba(251, 191, 36, 0.3);
+      }
+      .mtag-desktop {
+        background: rgba(99, 179, 237, 0.15);
+        color: #63b3ed;
+        border: 1px solid rgba(99, 179, 237, 0.3);
+      }
+      .mtag-quant {
+        background: var(--surface3);
+        color: var(--text-dim);
+        border: 1px solid var(--border);
+      }
+
+      /* ── INPUTS ── */
+      input,
+      select,
+      textarea {
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        color: var(--text);
+        font-family: var(--font-sans);
+        font-size: 0.82rem;
+        padding: 0.55rem 0.75rem;
+        width: 100%;
+        outline: none;
+        transition:
+          border-color var(--transition),
+          box-shadow var(--transition);
+        appearance: none;
+        -webkit-appearance: none;
+      }
+      select {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b6b80' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 0.75rem center;
+        padding-right: 2.2rem;
+        cursor: pointer;
+      }
+      input:focus,
+      select:focus,
+      textarea:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px var(--accent-glow);
+      }
+      textarea {
+        resize: vertical;
+        line-height: 1.65;
+        font-family: var(--font-mono);
+        font-size: 0.76rem;
+      }
+      #jd-text {
+        min-height: 200px;
+      }
+
+      /* ── BUTTONS ── */
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.4rem;
+        border-radius: var(--radius-sm);
+        font-family: var(--font-mono);
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.03em;
+        padding: 0.45rem 0.9rem;
+        border: none;
+        cursor: pointer;
+        transition: all var(--transition);
+        text-decoration: none;
+        white-space: nowrap;
+      }
+      .btn-primary {
+        background: var(--accent);
+        color: #fff;
+        box-shadow: 0 0 20px var(--accent-glow);
+      }
+      .btn-primary:hover {
+        background: #7c73ff;
+        box-shadow: 0 0 28px var(--accent-glow);
+        transform: translateY(-1px);
+      }
+      .btn-primary:active {
+        transform: translateY(0);
+      }
+      .btn-primary:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+      }
+      .btn-ghost {
+        background: transparent;
+        color: var(--text-muted);
+        border: 1px solid var(--border);
+      }
+      .btn-ghost:hover {
+        border-color: var(--border-bright);
+        color: var(--text);
+        background: var(--surface2);
+      }
+      .btn-outline {
+        background: transparent;
+        color: var(--accent);
+        border: 1px solid rgba(108, 99, 255, 0.35);
+      }
+      .btn-outline:hover {
+        background: var(--accent-soft);
+        border-color: var(--accent);
+      }
+      .btn-danger {
+        background: transparent;
+        color: var(--red);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+      }
+      .btn-danger:hover {
+        background: var(--red-soft);
+      }
+      .btn-pipeline {
+        background: var(--pipeline);
+        color: #fff;
+        box-shadow: 0 0 20px var(--pipeline-glow);
+      }
+      .btn-pipeline:hover {
+        background: #b49bff;
+        box-shadow: 0 0 28px var(--pipeline-glow);
+        transform: translateY(-1px);
+      }
+      .btn-pipeline:active {
+        transform: translateY(0);
+      }
+      .btn-pipeline:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+      }
+
+      .btn-run {
+        width: 100%;
+        margin-top: 1.5rem;
+        padding: 0.8rem 1rem;
+        font-size: 0.85rem;
+        letter-spacing: 0.06em;
+        position: relative;
+        overflow: hidden;
+      }
+      .btn-run::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          rgba(255, 255, 255, 0.08),
+          transparent
+        );
+        transform: translateX(-100%);
+        transition: transform 0.5s;
+      }
+      .btn-run:hover::before {
+        transform: translateX(100%);
+      }
+
+      /* ── ADVANCED PANEL ── */
+      .advanced-toggle {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-family: var(--font-mono);
+        font-size: 0.68rem;
+        font-weight: 600;
+        color: var(--text-muted);
+        cursor: pointer;
+        margin-top: 0.75rem;
+        padding: 0.45rem 0;
+        border: none;
+        background: none;
+        transition: color var(--transition);
+        letter-spacing: 0.05em;
+      }
+      .advanced-toggle:hover {
+        color: var(--text);
+      }
+      .advanced-toggle .chevron {
+        transition: transform var(--transition);
+        display: inline-block;
+        font-style: normal;
+      }
+      .advanced-toggle.open .chevron {
+        transform: rotate(180deg);
+      }
+      .advanced-panel {
+        display: none;
+        margin-top: 0.75rem;
+        padding: 1rem 1.1rem;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        animation: slideDown 0.2s ease;
+      }
+      .advanced-panel.open {
+        display: block;
+      }
+
+      @keyframes slideDown {
+        from {
+          opacity: 0;
+          transform: translateY(-6px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .adv-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.75rem;
+      }
+      .adv-grid-3 {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 0.75rem;
+      }
+      .adv-field label {
+        display: block;
+        font-family: var(--font-mono);
+        font-size: 0.62rem;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--text-dim);
+        margin-bottom: 0.35rem;
+      }
+      .adv-field label .hint {
+        font-weight: 400;
+        color: var(--text-dim);
+        opacity: 0.7;
+        text-transform: none;
+        letter-spacing: 0;
+      }
+      .adv-field input[type="range"] {
+        padding: 0;
+        background: none;
+        border: none;
+        box-shadow: none;
+        accent-color: var(--accent);
+        cursor: pointer;
+      }
+      .adv-field input[type="range"]:focus {
+        box-shadow: none;
+      }
+      .range-row {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      .range-val {
+        font-family: var(--font-mono);
+        font-size: 0.72rem;
+        font-weight: 600;
+        color: var(--accent);
+        min-width: 2.5rem;
+        text-align: right;
+      }
+      .adv-sep {
+        height: 1px;
+        background: var(--border);
+        margin: 0.75rem 0;
+      }
+
+      /* ── PROMPT MODAL ── */
+      .modal-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.7);
+        backdrop-filter: blur(4px);
+        z-index: 100;
+        align-items: center;
+        justify-content: center;
+        padding: 1.5rem;
+      }
+      .modal-overlay.open {
+        display: flex;
+      }
+      .modal {
+        background: var(--surface);
+        border: 1px solid var(--border-bright);
+        border-radius: 12px;
+        width: 100%;
+        max-width: 780px;
+        max-height: 90vh;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6);
+        animation: modalIn 0.2s ease;
+      }
+      @keyframes modalIn {
+        from {
+          opacity: 0;
+          transform: scale(0.96) translateY(12px);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1) translateY(0);
+        }
+      }
+      .modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid var(--border);
+        flex-shrink: 0;
+      }
+      .modal-title {
+        font-family: var(--font-mono);
+        font-size: 0.82rem;
+        font-weight: 700;
+        color: var(--text);
+      }
+      .modal-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 1.25rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+      }
+      .modal-body textarea {
+        flex: 1;
+        min-height: 460px;
+        font-size: 0.74rem;
+        line-height: 1.7;
+      }
+      .modal-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.9rem 1.25rem;
+        border-top: 1px solid var(--border);
+        gap: 0.5rem;
+        flex-shrink: 0;
+      }
+      .modal-footer-left {
+        font-family: var(--font-mono);
+        font-size: 0.65rem;
+        color: var(--text-dim);
+      }
+
+      /* ── PROMPT DISPLAY ── */
+      .prompt-display {
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 0.85rem 1rem;
+        font-family: var(--font-mono);
+        font-size: 0.72rem;
+        line-height: 1.6;
+        color: var(--text-muted);
+        max-height: 80px;
+        overflow: hidden;
+        position: relative;
+        cursor: pointer;
+        transition: border-color var(--transition);
+      }
+      .prompt-display:hover {
+        border-color: var(--border-bright);
+      }
+      .prompt-display::after {
+        content: "";
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 28px;
+        background: linear-gradient(to bottom, transparent, var(--surface2));
+      }
+      .prompt-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.6rem;
+        margin-top: 0.5rem;
+      }
+      .prompt-edit-btn {
+        flex-shrink: 0;
+        margin-top: 0;
+      }
+
+      /* ── PIPELINE STEPS PROGRESS ── */
+      .progress-wrap {
+        display: none;
+        margin-top: 1rem;
+      }
+      .progress-wrap.show {
+        display: block;
+      }
+
+      /* Simple spinner for non-pipeline */
+      .progress-simple {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-family: var(--font-mono);
+        font-size: 0.68rem;
+        color: var(--text-muted);
+        margin-bottom: 0.5rem;
+      }
+      .progress-bar-track {
+        height: 3px;
+        background: var(--surface3);
+        border-radius: 9999px;
+        overflow: hidden;
+      }
+      .progress-bar-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--accent), #a78bfa);
+        border-radius: 9999px;
+        width: 0%;
+        animation: progressIndeterminate 1.8s ease-in-out infinite;
+      }
+      .progress-bar-fill.pipeline-fill {
+        background: linear-gradient(90deg, var(--pipeline), #c4b5fd);
+      }
+      @keyframes progressIndeterminate {
+        0% {
+          width: 0%;
+          margin-left: 0;
+        }
+        50% {
+          width: 60%;
+          margin-left: 20%;
+        }
+        100% {
+          width: 0%;
+          margin-left: 100%;
+        }
+      }
+
+      /* Pipeline step list */
+      .pipeline-steps {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+        margin-bottom: 0.75rem;
+      }
+      .pipeline-step {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        font-family: var(--font-mono);
+        font-size: 0.68rem;
+        color: var(--text-dim);
+        padding: 0.35rem 0.6rem;
+        border-radius: var(--radius-sm);
+        border: 1px solid transparent;
+        transition: all 0.2s ease;
+      }
+      .pipeline-step.active {
+        color: var(--pipeline);
+        background: var(--pipeline-soft);
+        border-color: rgba(167, 139, 250, 0.25);
+      }
+      .pipeline-step.done {
+        color: var(--green);
+      }
+      .pipeline-step.done .step-icon {
+        color: var(--green);
+      }
+      .step-icon {
+        font-size: 0.75rem;
+        width: 14px;
+        flex-shrink: 0;
+      }
+      .step-label {
+        flex: 1;
+      }
+      .step-detail {
+        font-size: 0.62rem;
+        color: var(--text-dim);
+        opacity: 0.8;
+      }
+      .pipeline-step.active .step-detail {
+        color: var(--pipeline);
+        opacity: 0.7;
+      }
+      .pipeline-step.done .step-detail {
+        color: var(--green);
+        opacity: 0.7;
+      }
+
+      /* ── SPINNER ── */
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      .spinner {
+        width: 10px;
+        height: 10px;
+        border: 2px solid currentColor;
+        border-top-color: transparent;
+        border-radius: 50%;
+        animation: spin 0.65s linear infinite;
+        display: inline-block;
+        flex-shrink: 0;
+      }
+
+      /* ── ERROR ── */
+      .error-wrap {
+        display: none;
+        margin-top: 1rem;
+      }
+      .error-wrap.show {
+        display: block;
+      }
+      .error-card {
+        background: var(--red-soft);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        border-radius: var(--radius);
+        padding: 0.85rem 1rem;
+        display: flex;
+        align-items: flex-start;
+        gap: 0.6rem;
+      }
+      .error-icon {
+        font-size: 0.9rem;
+        flex-shrink: 0;
+        margin-top: 0.05rem;
+      }
+      .error-text strong {
+        display: block;
+        font-family: var(--font-mono);
+        font-size: 0.72rem;
+        font-weight: 600;
+        color: var(--red);
+        margin-bottom: 0.2rem;
+      }
+      .error-text p {
+        font-size: 0.78rem;
+        color: var(--text-muted);
+      }
+
+      /* ── RESULTS ── */
+      .results-wrap {
+        display: none;
+        margin-top: 2.5rem;
+      }
+      .results-wrap.show {
+        display: block;
+      }
+      .results-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 1.25rem;
+      }
+      .results-title {
+        font-family: var(--font-mono);
+        font-size: 0.82rem;
+        font-weight: 700;
+        color: var(--text);
+      }
+      .badge {
+        font-family: var(--font-mono);
+        font-size: 0.62rem;
+        font-weight: 600;
+        padding: 0.2rem 0.6rem;
+        border-radius: 9999px;
+        background: var(--accent-soft);
+        border: 1px solid rgba(108, 99, 255, 0.3);
+        color: var(--accent);
+      }
+      .badge.pipeline-badge {
+        background: var(--pipeline-soft);
+        border-color: rgba(167, 139, 250, 0.3);
+        color: var(--pipeline);
+      }
+
+      /* Pipeline analysis card */
+      .analysis-card {
+        background: var(--surface);
+        border: 1px solid rgba(167, 139, 250, 0.25);
+        border-radius: var(--radius);
+        padding: 0.9rem 1.1rem;
+        margin-bottom: 1.25rem;
+      }
+      .analysis-card-header {
+        font-family: var(--font-mono);
+        font-size: 0.62rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--pipeline);
+        margin-bottom: 0.6rem;
+      }
+      .analysis-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.6rem;
+      }
+      .analysis-field {
+        font-size: 0.75rem;
+      }
+      .analysis-field-label {
+        font-family: var(--font-mono);
+        font-size: 0.6rem;
+        color: var(--text-dim);
+        margin-bottom: 0.2rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+      .analysis-field-value {
+        color: var(--text-muted);
+      }
+      .keyword-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.3rem;
+      }
+      .kw-tag {
+        font-family: var(--font-mono);
+        font-size: 0.6rem;
+        padding: 0.15rem 0.45rem;
+        border-radius: 4px;
+        background: var(--pipeline-soft);
+        border: 1px solid rgba(167, 139, 250, 0.2);
+        color: var(--pipeline);
+      }
+
+      .section-divider {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        margin: 1.1rem 0 0.5rem;
+      }
+      .section-divider::before,
+      .section-divider::after {
+        content: "";
+        flex: 1;
+        height: 1px;
+        background: var(--border);
+      }
+      .section-divider-label {
+        font-family: var(--font-mono);
+        font-size: 0.62rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--accent);
+        white-space: nowrap;
+        padding: 0.15rem 0.5rem;
+        background: var(--accent-soft);
+        border: 1px solid rgba(108, 99, 255, 0.25);
+        border-radius: 4px;
+      }
+      .change-section-tag {
+        font-family: var(--font-mono);
+        font-size: 0.58rem;
+        font-weight: 600;
+        color: var(--accent);
+        opacity: 0.7;
+        max-width: 200px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .change-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        margin-bottom: 0.6rem;
+        overflow: hidden;
+        transition: border-color var(--transition);
+      }
+      .change-card:hover {
+        border-color: var(--border-bright);
+      }
+      .change-card-header {
+        padding: 0.3rem 0.8rem;
+        background: var(--surface2);
+        border-bottom: 1px solid var(--border);
+        font-family: var(--font-mono);
+        font-size: 0.6rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--text-dim);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .change-card-body {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+      }
+      .change-col {
+        padding: 0.75rem 0.9rem;
+        font-size: 0.77rem;
+        line-height: 1.65;
+      }
+      .change-col.before {
+        border-right: 1px solid var(--border);
+        color: var(--text-dim);
+      }
+      .change-col.after {
+        color: var(--text);
+      }
+      .col-label {
+        font-family: var(--font-mono);
+        font-size: 0.58rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.09em;
+        color: var(--text-dim);
+        margin-bottom: 0.35rem;
+      }
+      .change-col.after .col-label {
+        color: var(--accent);
+        opacity: 0.8;
+      }
+
+      .download-bar {
+        margin-top: 1.25rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1rem 1.25rem;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        gap: 1rem;
+      }
+      .dl-left {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+      }
+      .dl-icon {
+        font-size: 1.5rem;
+      }
+      .dl-name {
+        font-family: var(--font-mono);
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--text);
+      }
+      .dl-sub {
+        font-size: 0.7rem;
+        color: var(--text-muted);
+        margin-top: 0.1rem;
+        font-family: var(--font-mono);
+      }
+
+      /* ── PROVIDER TOGGLE ── */
+      .provider-toggle {
+        display: inline-flex;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 3px;
+        gap: 3px;
+      }
+      .provider-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        font-family: var(--font-mono);
+        font-size: 0.72rem;
+        font-weight: 600;
+        padding: 0.4rem 0.9rem;
+        border-radius: 6px;
+        border: none;
+        background: transparent;
+        color: var(--text-muted);
+        cursor: pointer;
+        transition: all var(--transition);
+        letter-spacing: 0.02em;
+      }
+      .provider-btn:hover {
+        color: var(--text);
+        background: var(--surface3);
+      }
+      .provider-btn.active {
+        background: var(--accent);
+        color: #fff;
+        box-shadow: 0 0 12px var(--accent-glow);
+      }
+      .provider-btn.active.pipeline-active {
+        background: var(--pipeline);
+        box-shadow: 0 0 12px var(--pipeline-glow);
+      }
+      .prov-icon {
+        font-size: 0.85rem;
+      }
+
+      /* ── API KEY ROW ── */
+      .apikey-row {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+      }
+      .apikey-eye {
+        position: absolute;
+        right: 0.55rem;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-size: 0.85rem;
+        opacity: 0.5;
+        transition: opacity var(--transition);
+        padding: 0;
+        line-height: 1;
+      }
+      .apikey-eye:hover {
+        opacity: 1;
+      }
+      .apikey-hint {
+        margin-top: 0.45rem;
+        font-family: var(--font-mono);
+        font-size: 0.62rem;
+        color: var(--text-dim);
+      }
+
+      /* ── PIPELINE PANEL ── */
+      .pipeline-config-toggle {
+        display: inline-flex;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 2px;
+        gap: 2px;
+        margin-bottom: 1rem;
+      }
+      .pcfg-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        font-family: var(--font-mono);
+        font-size: 0.68rem;
+        font-weight: 600;
+        padding: 0.35rem 0.75rem;
+        border-radius: 4px;
+        border: none;
+        background: transparent;
+        color: var(--text-muted);
+        cursor: pointer;
+        transition: all var(--transition);
+      }
+      .pcfg-btn:hover {
+        color: var(--text);
+        background: var(--surface3);
+      }
+      .pcfg-btn.active {
+        background: var(--pipeline);
+        color: #fff;
+      }
+
+      .pipeline-default-info {
+        background: var(--surface2);
+        border: 1px solid rgba(167, 139, 250, 0.2);
+        border-radius: var(--radius);
+        padding: 0.85rem 1rem;
+        margin-bottom: 0.75rem;
+      }
+      .pipeline-default-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-family: var(--font-mono);
+        font-size: 0.72rem;
+        color: var(--text-muted);
+        padding: 0.25rem 0;
+      }
+      .pipeline-default-row .label-col {
+        color: var(--text-dim);
+        font-size: 0.62rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+      .pipeline-default-row .val-col {
+        color: var(--pipeline);
+        font-size: 0.7rem;
+      }
+      .pipeline-default-row + .pipeline-default-row {
+        border-top: 1px solid var(--border);
+        margin-top: 0.25rem;
+        padding-top: 0.5rem;
+      }
+
+      .info-note {
+        font-family: var(--font-mono);
+        font-size: 0.62rem;
+        color: var(--text-dim);
+        margin-top: 0.5rem;
+        line-height: 1.5;
+      }
+
+      /* ── SCROLLBAR ── */
+      ::-webkit-scrollbar {
+        width: 5px;
+        height: 5px;
+      }
+      ::-webkit-scrollbar-track {
+        background: var(--surface);
+      }
+      ::-webkit-scrollbar-thumb {
+        background: var(--border-bright);
+        border-radius: 9999px;
+      }
+
+      .divider {
+        height: 1px;
+        background: var(--border);
+        margin: 1.5rem 0;
+      }
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        font-family: var(--font-mono);
+        font-size: 0.6rem;
+        font-weight: 500;
+        padding: 0.15rem 0.45rem;
+        border-radius: var(--radius-sm);
+        background: var(--surface3);
+        border: 1px solid var(--border);
+        color: var(--text-muted);
+      }
+
+      @media (max-width: 600px) {
+        .change-card-body {
+          grid-template-columns: 1fr;
+        }
+        .change-col.before {
+          border-right: none;
+          border-bottom: 1px solid var(--border);
+        }
+        .adv-grid {
+          grid-template-columns: 1fr;
+        }
+        .adv-grid-3 {
+          grid-template-columns: 1fr 1fr;
+        }
+        .download-bar {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+        .analysis-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      /* ── TWO-COLUMN LAYOUT ── */
+      .container { max-width: 1300px; }
+      .app-layout {
+        display: grid;
+        grid-template-columns: 400px 1fr;
+        gap: 1.75rem;
+        align-items: start;
+      }
+      .col-left, .col-right {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+      }
+
+      /* ── PANEL CARDS ── */
+      .panel-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 1.25rem 1.5rem;
+      }
+      .panel-label {
+        font-size: 0.63rem;
+        font-weight: 600;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+        color: var(--text-muted);
+        margin-bottom: 0.75rem;
+      }
+      .panel-label .hint { font-weight: 400; text-transform: none; letter-spacing: 0; }
+
+      /* ── JOB TITLE ── */
+      .job-title-input {
+        width: 100%;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        color: var(--text);
+        font-family: var(--font-sans);
+        font-size: 0.88rem;
+        padding: 0.6rem 0.8rem;
+        transition: border-color var(--transition);
+      }
+      .job-title-input:focus { outline: none; border-color: var(--accent); }
+      .job-title-input::placeholder { color: var(--text-dim); }
+
+      /* ── JD TEXTAREA ── */
+      #jd-text { min-height: 300px; resize: vertical; }
+
+      /* ── VIEW TABS IN HEADER ── */
+      .header-right { display: flex; align-items: center; gap: 1rem; }
+      .view-tabs {
+        display: flex;
+        gap: 0.15rem;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        padding: 0.2rem;
+      }
+      .view-tab {
+        background: none;
+        border: none;
+        color: var(--text-muted);
+        font-family: var(--font-sans);
+        font-size: 0.75rem;
+        font-weight: 500;
+        padding: 0.35rem 0.9rem;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all var(--transition);
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+      }
+      .view-tab:hover { color: var(--text); }
+      .view-tab.active { background: var(--surface3); color: var(--text); border: 1px solid var(--border-bright); }
+      .history-count {
+        background: var(--accent);
+        color: white;
+        font-size: 0.6rem;
+        font-weight: 700;
+        border-radius: 10px;
+        padding: 0.05rem 0.42rem;
+        min-width: 18px;
+        text-align: center;
+      }
+
+      /* ── HISTORY VIEW ── */
+      .history-toolbar {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid var(--border);
+      }
+      .history-heading { font-size: 1.05rem; font-weight: 600; }
+      .history-sub { font-size: 0.72rem; color: var(--text-muted); margin-top: 0.2rem; }
+      .history-list { display: flex; flex-direction: column; gap: 0.75rem; }
+      .history-item {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 1rem 1.25rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        transition: border-color var(--transition);
+      }
+      .history-item:hover { border-color: var(--border-bright); }
+      .history-item-icon { font-size: 1.4rem; flex-shrink: 0; }
+      .history-item-body { flex: 1; min-width: 0; }
+      .history-item-title {
+        font-size: 0.88rem;
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .history-item-meta {
+        font-size: 0.69rem;
+        color: var(--text-muted);
+        margin-top: 0.2rem;
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+      }
+      .history-item-jd {
+        font-size: 0.69rem;
+        color: var(--text-dim);
+        margin-top: 0.25rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .history-item-actions { display: flex; gap: 0.4rem; flex-shrink: 0; }
+      .history-empty { text-align: center; padding: 5rem 2rem; color: var(--text-muted); }
+      .history-empty-icon { font-size: 2.5rem; margin-bottom: 1rem; opacity: 0.35; }
+
+      /* ── SYSTEM PROMPT IN ADVANCED ── */
+      .adv-prompt-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 0.5rem;
+      }
+      .adv-prompt-label {
+        font-size: 0.68rem;
+        font-weight: 600;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+      }
+      .btn-xs { font-size: 0.65rem !important; padding: 0.2rem 0.55rem !important; }
+      .prompt-preview-mini {
+        font-size: 0.68rem;
+        color: var(--text-dim);
+        font-family: var(--font-mono);
+        line-height: 1.5;
+        background: var(--surface3);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        padding: 0.6rem 0.75rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        cursor: pointer;
+        transition: border-color var(--transition);
+      }
+      .prompt-preview-mini:hover { border-color: var(--border-bright); }
+
+      /* ── RUN BUTTON FULL WIDTH IN COL ── */
+      .btn-run { width: 100%; }
+
+      /* ── RESPONSIVE ── */
+      @media (max-width: 960px) {
+        .app-layout { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <!-- HEADER -->
+      <header class="header">
+        <div class="logo">
+          <div class="logo-icon">✦</div>
+          <span class="logo-text">resume<span>/</span>tailor</span>
+        </div>
+        <div class="header-right">
+          <div class="view-tabs">
+            <button class="view-tab active" id="tab-tailor" onclick="switchView('tailor')">Tailor</button>
+            <button class="view-tab" id="tab-history" onclick="switchView('history')">
+              History <span class="history-count" id="history-count" style="display:none"></span>
+            </button>
+          </div>
+          <div id="lm-pill" class="status-pill">
+            <span class="dot"></span>
+            <span id="lm-pill-text">checking...</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- ── TAILOR VIEW ── -->
+      <div id="view-tailor">
+        <div class="app-layout">
+
+          <!-- LEFT COLUMN: inputs -->
+          <div class="col-left">
+
+            <!-- Resume -->
+            <div class="panel-card">
+              <div class="panel-label">Resume</div>
+              <div id="resume-card" class="card" style="display:none;padding:0;border:none;background:none">
+                <div class="resume-card-row">
+                  <div class="resume-icon">📄</div>
+                  <div class="resume-info">
+                    <div class="resume-name">base_resume.docx</div>
+                    <div id="resume-meta" class="resume-meta">—</div>
+                  </div>
+                  <div class="resume-actions">
+                    <button class="btn btn-ghost" onclick="togglePreview()">Preview</button>
+                    <button class="btn btn-ghost" onclick="switchToUpload()">Replace</button>
+                  </div>
+                </div>
+                <div id="resume-preview" class="resume-preview"></div>
+              </div>
+              <div id="drop-zone" class="drop-zone" style="display:none;margin-top:0">
+                <div class="drop-zone-icon">⬆</div>
+                <p><strong>Drop your .docx resume here</strong></p>
+                <p>or <span class="link" onclick="document.getElementById('file-input').click()">browse files</span></p>
+                <input type="file" id="file-input" accept=".docx" style="display:none" onchange="handleFile(this.files[0])" />
+              </div>
+            </div>
+
+            <!-- Job Title -->
+            <div class="panel-card">
+              <div class="panel-label">Job Title <span class="hint">— used for file naming</span></div>
+              <input type="text" id="job-title" class="job-title-input" placeholder="e.g. Twitch SWE, Amazon L4, Google PM..." autocomplete="off" oninput="this.dataset.userEdited=this.value?'1':''" />
+            </div>
+
+            <!-- Job Description -->
+            <div class="panel-card">
+              <div class="panel-label">Job Description</div>
+              <textarea id="jd-text" placeholder="Paste the full job description here..." oninput="autoExtractJobTitle()"></textarea>
+            </div>
+
+          </div><!-- /col-left -->
+
+          <!-- RIGHT COLUMN: config + action + output -->
+          <div class="col-right">
+
+            <!-- Provider + Model -->
+            <div class="panel-card">
+              <div class="panel-label">Model</div>
+              <div class="provider-toggle" id="provider-toggle">
+                <button class="provider-btn active" id="prov-lm" onclick="setProvider('lm')">
+                  <span class="prov-icon">🖥</span> LM Studio
+                </button>
+                <button class="provider-btn" id="prov-gemini" onclick="setProvider('gemini')">
+                  <span class="prov-icon">✦</span> Gemini
+                </button>
+                <!-- Pipeline: hidden from UI, backend preserved -->
+                <button class="provider-btn" id="prov-pipeline" onclick="setProvider('pipeline')" style="display:none">
+                  <span class="prov-icon">⚡</span> Pipeline
+                </button>
+              </div>
+
+              <!-- LM Studio panel -->
+              <div id="panel-lm" style="margin-top:0.75rem">
+                <div class="label" style="margin-bottom:0.5rem">Model</div>
+                <div class="model-row">
+                  <div class="model-picker" id="model-picker">
+                    <button class="model-picker-btn" id="model-picker-btn" onclick="toggleModelDropdown()" type="button">
+                      <span class="model-picker-label" id="model-picker-label">Loading models...</span>
+                      <span class="model-picker-tags" id="model-picker-tags"></span>
+                    </button>
+                    <div class="model-dropdown" id="model-dropdown"></div>
+                  </div>
+                  <button class="btn btn-ghost" onclick="loadModels()">↻ Refresh</button>
+                </div>
+                <input type="hidden" id="model-select" value="" />
+              </div>
+
+              <!-- Gemini panel -->
+              <div id="panel-gemini" style="display:none;margin-top:0.75rem">
+                <div class="label" style="margin-bottom:0.5rem">API Key</div>
+                <div class="apikey-row">
+                  <div style="position:relative;flex:1">
+                    <input type="password" id="gemini-api-key" placeholder="Paste your Gemini API key (AIza...)" autocomplete="off" style="padding-right:2.5rem" />
+                    <button class="apikey-eye" id="apikey-eye" type="button" onclick="toggleApiKeyVisibility()" title="Show/hide key">👁</button>
+                  </div>
+                  <button class="btn btn-ghost" onclick="fetchGeminiModels()" id="gemini-fetch-btn" style="white-space:nowrap;font-size:0.68rem">Load Models</button>
+                  <a href="https://aistudio.google.com/app/apikey" target="_blank" class="btn btn-ghost" style="white-space:nowrap;font-size:0.68rem">Get key ↗</a>
+                </div>
+                <div class="apikey-hint" id="gemini-key-hint">Key is stored in your browser only — never sent anywhere except Google's API.</div>
+                <div id="gemini-model-wrap" style="display:none;margin-top:0.75rem">
+                  <div class="label" style="margin-bottom:0.5rem">Model</div>
+                  <div class="model-row">
+                    <div class="model-picker" id="gemini-model-picker">
+                      <button class="model-picker-btn" id="gemini-model-picker-btn" onclick="toggleGeminiDropdown()" type="button">
+                        <span class="model-picker-label" id="gemini-model-picker-label">Select a model...</span>
+                        <span class="model-picker-tags" id="gemini-model-picker-tags"></span>
+                      </button>
+                      <div class="model-dropdown" id="gemini-model-dropdown"></div>
+                    </div>
+                  </div>
+                  <input type="hidden" id="gemini-model-select" value="" />
+                </div>
+              </div>
+
+              <!-- Pipeline panel (hidden from UI, backend route intact) -->
+              <div id="panel-pipeline" style="display:none;margin-top:0.75rem">
+                <div class="pipeline-config-toggle">
+                  <button class="pcfg-btn active" id="pcfg-default" onclick="setPipelineConfig('default')">⚡ Default</button>
+                  <button class="pcfg-btn" id="pcfg-custom" onclick="setPipelineConfig('custom')">⚙ Custom</button>
+                </div>
+                <div id="pipeline-default-panel">
+                  <div class="pipeline-default-info">
+                    <div class="pipeline-default-row"><span class="label-col">Steps 1, 2, 4, 5</span><span class="val-col">Local Qwen3.5-9B (LM Studio)</span></div>
+                    <div class="pipeline-default-row"><span class="label-col">Step 3 — Rewriting</span><span class="val-col">gemini-3.1-flash-lite-preview-05-20</span></div>
+                    <div class="pipeline-default-row"><span class="label-col">Temperatures</span><span class="val-col">Local: 0.15 · Gemini: 0.4</span></div>
+                  </div>
+                  <div class="info-note">LM Studio must be running with Qwen3.5-9B loaded. Gemini API key required below.</div>
+                  <div class="label" style="margin-bottom:0.5rem;margin-top:1rem">Gemini API Key</div>
+                  <div class="apikey-row">
+                    <div style="position:relative;flex:1">
+                      <input type="password" id="pipeline-api-key" placeholder="Paste your Gemini API key (AIza...)" autocomplete="off" style="padding-right:2.5rem" />
+                      <button class="apikey-eye" id="pipeline-apikey-eye" type="button" onclick="togglePipelineApiKeyVisibility()" title="Show/hide key">👁</button>
+                    </div>
+                    <a href="https://aistudio.google.com/app/apikey" target="_blank" class="btn btn-ghost" style="white-space:nowrap;font-size:0.68rem">Get key ↗</a>
+                  </div>
+                  <div class="apikey-hint" id="pipeline-key-hint">Key is stored in your browser only.</div>
+                </div>
+                <div id="pipeline-custom-panel" style="display:none">
+                  <div class="label" style="margin-bottom:0.5rem">Local Model <span style="font-weight:400;text-transform:none;letter-spacing:0">(Steps 1, 2, 4, 5)</span></div>
+                  <div class="model-row">
+                    <div class="model-picker" id="pipeline-local-picker">
+                      <button class="model-picker-btn" id="pipeline-local-picker-btn" onclick="togglePipelineLocalDropdown()" type="button">
+                        <span class="model-picker-label" id="pipeline-local-picker-label">Loading models...</span>
+                        <span class="model-picker-tags" id="pipeline-local-picker-tags"></span>
+                      </button>
+                      <div class="model-dropdown" id="pipeline-local-dropdown"></div>
+                    </div>
+                  </div>
+                  <input type="hidden" id="pipeline-local-model" value="" />
+                  <div class="label" style="margin-bottom:0.5rem;margin-top:1rem">Gemini API Key</div>
+                  <div class="apikey-row">
+                    <div style="position:relative;flex:1">
+                      <input type="password" id="pipeline-api-key-custom" placeholder="Paste your Gemini API key (AIza...)" autocomplete="off" style="padding-right:2.5rem" />
+                      <button class="apikey-eye" type="button" onclick="togglePipelineCustomApiKeyVisibility()" title="Show/hide key">👁</button>
+                    </div>
+                    <button class="btn btn-ghost" onclick="fetchPipelineGeminiModels()" id="pipeline-gemini-fetch-btn" style="white-space:nowrap;font-size:0.68rem">Load Models</button>
+                    <a href="https://aistudio.google.com/app/apikey" target="_blank" class="btn btn-ghost" style="white-space:nowrap;font-size:0.68rem">Get key ↗</a>
+                  </div>
+                  <div class="apikey-hint" id="pipeline-gemini-key-hint">Key stored in browser only.</div>
+                  <div id="pipeline-gemini-model-wrap" style="display:none;margin-top:0.75rem">
+                    <div class="label" style="margin-bottom:0.5rem">Gemini Model <span style="font-weight:400;text-transform:none;letter-spacing:0">(Step 3 — Rewriting)</span></div>
+                    <div class="model-row">
+                      <div class="model-picker" id="pipeline-gemini-picker">
+                        <button class="model-picker-btn" id="pipeline-gemini-picker-btn" onclick="togglePipelineGeminiDropdown()" type="button">
+                          <span class="model-picker-label" id="pipeline-gemini-picker-label">Select a model...</span>
+                          <span class="model-picker-tags" id="pipeline-gemini-picker-tags"></span>
+                        </button>
+                        <div class="model-dropdown" id="pipeline-gemini-dropdown"></div>
+                      </div>
+                    </div>
+                    <input type="hidden" id="pipeline-gemini-model" value="" />
+                  </div>
+                </div>
+              </div><!-- /panel-pipeline -->
+            </div><!-- /panel-card: model -->
+
+            <!-- Advanced Configuration -->
+            <button class="advanced-toggle" id="adv-toggle" onclick="toggleAdvanced()">
+                <span class="chevron">▾</span> Advanced Configuration
+              </button>
+              <div class="advanced-panel" id="adv-panel">
+                <div class="adv-grid">
+                  <div class="adv-field">
+                    <label>Temperature <span class="hint">— creativity</span></label>
+                    <div class="range-row">
+                      <input type="range" id="cfg-temp" min="0" max="2" step="0.05" value="0.3" oninput="updateRange('cfg-temp','cfg-temp-val')" />
+                      <span class="range-val" id="cfg-temp-val">0.3</span>
+                    </div>
+                  </div>
+                  <div class="adv-field">
+                    <label>Top P <span class="hint">— nucleus sampling</span></label>
+                    <div class="range-row">
+                      <input type="range" id="cfg-top-p" min="0" max="1" step="0.05" value="0.95" oninput="updateRange('cfg-top-p','cfg-top-p-val')" />
+                      <span class="range-val" id="cfg-top-p-val">0.95</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="adv-sep"></div>
+                <div class="adv-grid-3">
+                  <div class="adv-field">
+                    <label>Max Tokens</label>
+                    <input type="number" id="cfg-max-tokens" value="8192" min="256" max="32768" step="256" />
+                  </div>
+                  <div class="adv-field">
+                    <label>Top K <span class="hint">— 0 = off</span></label>
+                    <input type="number" id="cfg-top-k" value="0" min="0" max="200" step="1" />
+                  </div>
+                  <div class="adv-field">
+                    <label>Repeat Penalty</label>
+                    <input type="number" id="cfg-rep-pen" value="1.1" min="1.0" max="2.0" step="0.05" />
+                  </div>
+                </div>
+                <div class="adv-sep"></div>
+                <div class="adv-grid">
+                  <div class="adv-field">
+                    <label>Context Length</label>
+                    <select id="cfg-ctx">
+                      <option value="">Model default</option>
+                      <option value="2048">2,048</option>
+                      <option value="4096">4,096</option>
+                      <option value="8192">8,192</option>
+                      <option value="16384">16,384</option>
+                      <option value="32768">32,768</option>
+                    </select>
+                  </div>
+                  <div class="adv-field">
+                    <label>Seed <span class="hint">— -1 = random</span></label>
+                    <input type="number" id="cfg-seed" value="-1" min="-1" />
+                  </div>
+                </div>
+                <div class="adv-sep"></div>
+                <!-- System prompt -->
+                <div class="adv-prompt-row">
+                  <span class="adv-prompt-label">System Prompt</span>
+                  <button class="btn btn-ghost btn-xs" onclick="openPromptModal()">Edit ↗</button>
+                </div>
+                <div class="prompt-preview-mini" id="prompt-display" onclick="openPromptModal()">Loading prompt...</div>
+                <div style="margin-top:0.75rem;display:flex;gap:0.5rem;justify-content:flex-end">
+                  <button class="btn btn-ghost" onclick="resetAdvanced()">Reset defaults</button>
+                </div>
+              </div>
+
+
+            <!-- Run -->
+            <button class="btn btn-primary btn-run" id="run-btn" onclick="runTailor()">Tailor Resume →</button>
+
+            <!-- Progress -->
+            <div class="progress-wrap" id="progress-wrap">
+              <div id="pipeline-progress" style="display:none">
+                <div class="pipeline-steps" id="pipeline-steps-list">
+                  <div class="pipeline-step" id="pstep-1" data-step="1"><span class="step-icon">○</span><span class="step-label">Step 1 — JD Analysis</span><span class="step-detail" id="pstep-1-detail">local · Qwen</span></div>
+                  <div class="pipeline-step" id="pstep-2" data-step="2"><span class="step-icon">○</span><span class="step-label">Step 2 — Change Planning</span><span class="step-detail" id="pstep-2-detail">local · Qwen</span></div>
+                  <div class="pipeline-step" id="pstep-3" data-step="3"><span class="step-icon">○</span><span class="step-label">Step 3 — Bullet Rewriting</span><span class="step-detail" id="pstep-3-detail">Gemini</span></div>
+                  <div class="pipeline-step" id="pstep-4" data-step="4"><span class="step-icon">○</span><span class="step-label">Step 4 — Validation + Fix</span><span class="step-detail" id="pstep-4-detail">local · Qwen</span></div>
+                  <div class="pipeline-step" id="pstep-5" data-step="5"><span class="step-icon">○</span><span class="step-label">Step 5 — JSON Assembly</span><span class="step-detail" id="pstep-5-detail">local · Qwen</span></div>
+                </div>
+              </div>
+              <div id="simple-progress" style="display:none">
+                <div class="progress-simple">
+                  <span class="spinner"></span>
+                  <span id="progress-label-text">Sending to model — this may take a minute or two...</span>
+                </div>
+              </div>
+              <div class="progress-bar-track"><div class="progress-bar-fill" id="progress-bar-fill"></div></div>
+            </div>
+
+            <!-- Error -->
+            <div class="error-wrap" id="error-wrap">
+              <div class="error-card">
+                <div class="error-icon">⚠</div>
+                <div class="error-text" style="flex:1">
+                  <strong id="error-title">Something went wrong</strong>
+                  <p id="error-msg"></p>
+                  <p id="error-hint" style="margin-top:0.3rem;font-size:0.72rem;color:var(--text-dim)"></p>
+                  <div id="error-raw-wrap" style="display:none;margin-top:0.6rem">
+                    <button class="btn btn-ghost" style="font-size:0.65rem;padding:0.3rem 0.6rem;margin-bottom:0.5rem" onclick="toggleRaw()">▾ Show raw model output</button>
+                    <pre id="error-raw" style="display:none;background:var(--surface3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:0.75rem;font-family:var(--font-mono);font-size:0.65rem;line-height:1.6;color:var(--text-muted);white-space:pre-wrap;overflow-x:auto;max-height:280px;overflow-y:auto"></pre>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Results -->
+            <div class="results-wrap" id="results-wrap">
+              <div class="results-header">
+                <div class="results-title" id="results-title">Changes</div>
+                <div id="results-badge" class="badge"></div>
+              </div>
+              <div id="analysis-card" style="display:none" class="analysis-card">
+                <div class="analysis-card-header">⚡ Pipeline Analysis — Step 1 Output</div>
+                <div class="analysis-grid">
+                  <div class="analysis-field"><div class="analysis-field-label">Role Type</div><div class="analysis-field-value" id="an-role">—</div></div>
+                  <div class="analysis-field"><div class="analysis-field-label">Seniority · Domain</div><div class="analysis-field-value" id="an-seniority">—</div></div>
+                  <div class="analysis-field" style="grid-column:1/-1"><div class="analysis-field-label">Top Keywords</div><div class="keyword-tags" id="an-keywords"></div></div>
+                  <div class="analysis-field" style="grid-column:1/-1"><div class="analysis-field-label">Skill Gaps</div><div class="keyword-tags" id="an-gaps"></div></div>
+                </div>
+              </div>
+              <div class="download-bar">
+                <div class="dl-left">
+                  <div class="dl-icon">📥</div>
+                  <div>
+                    <div class="dl-name" id="dl-filename">resume_tailored.docx</div>
+                    <div class="dl-sub">Original formatting preserved · content tailored to JD</div>
+                  </div>
+                </div>
+                <div style="display:flex;gap:0.5rem;align-items:center">
+                  <a id="dl-pdf-link" class="btn btn-ghost" href="#" style="white-space:nowrap">↓ PDF</a>
+                  <a id="dl-link" class="btn btn-primary" href="#" download>↓ .docx</a>
+                </div>
+              </div>
+              <div id="changes-list"></div>
+            </div>
+
+          </div><!-- /col-right -->
+        </div><!-- /app-layout -->
+      </div><!-- /view-tailor -->
+
+      <!-- ── HISTORY VIEW ── -->
+      <div id="view-history" style="display:none">
+        <div class="history-toolbar">
+          <div>
+            <div class="history-heading">Run History</div>
+            <div class="history-sub" id="history-sub">No runs yet</div>
+          </div>
+          <button class="btn btn-ghost" onclick="clearHistory()">Clear all</button>
+        </div>
+        <div id="history-list" class="history-list"></div>
+        <div id="history-empty" class="history-empty">
+          <div class="history-empty-icon">📂</div>
+          <p>No runs yet. Tailor a resume to see your history here.</p>
+        </div>
+      </div>
+
+    </div><!-- /container -->
+
+    <!-- PROMPT MODAL -->
+    <div class="modal-overlay" id="prompt-modal">
+      <div class="modal">
+        <div class="modal-header">
+          <div class="modal-title">✦ Edit System Prompt</div>
+          <button class="btn btn-ghost" onclick="closePromptModal()">✕ Close</button>
+        </div>
+        <div class="modal-body">
+          <textarea id="prompt-editor" spellcheck="false"></textarea>
+        </div>
+        <div class="modal-footer">
+          <div class="modal-footer-left">Changes saved to your browser</div>
+          <div style="display:flex;gap:0.5rem">
+            <button class="btn btn-danger" onclick="resetPrompt()">Reset to default</button>
+            <button class="btn btn-primary" onclick="savePrompt()">Save & Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+            // ── DEFAULT PROMPT ─────────────────────────────────────────────────────────
+            const DEFAULT_PROMPT = `You are an expert technical resume writer. Your job is to tailor a resume to a specific job description by injecting missing keywords naturally into existing content.
+
+HARD CONSTRAINTS — never break these:
+- One-to-one replacements only. Every "original" must be copied verbatim from the resume. No new bullets, no deletions.
+- Never fabricate metrics, technologies, or tools the candidate has not used.
+- Preserve every existing number, percentage, and metric exactly as written.
+- Output only a raw JSON array — no markdown, no prose, no explanation. Nothing before or after the [].
+
+WRITING RULES:
+- Max 32 words per bullet. Open with a strong past-tense action verb.
+- Banned openers: Led, Managed, Worked, Helped, Assisted, Supported, Utilized, Leveraged, Spearheaded, Responsible for.
+- Banned phrase: "as measured by" — never write this.
+- Vary sentence structure and openers across bullets — no two bullets should follow the same pattern.
+- If a bullet has no real metric, do not add a fake one. Focus on clarity and keyword fit instead.
+- Summary: under 50 words, no first person, reflect the seniority and domain of the JD.
+- Skills lines: reorder within existing categories to front-load JD-critical terms. Never add skills not present.`;
+
+            const hasDefault = {{ 'true' if has_default else 'false' }};
+            let resumeReady = hasDefault;
+            let currentProvider = 'lm'; // 'lm' | 'gemini' | 'pipeline'
+            let pipelineConfigMode = 'default'; // 'default' | 'custom'
+
+            const DEFAULT_LOCAL_MODEL_FOR_PIPELINE = 'qwen3.5-9b';
+            const DEFAULT_GEMINI_MODEL_FOR_PIPELINE = 'gemini-2.0-flash-lite';
+
+            // ── BOOT ──────────────────────────────────────────────────────────────────
+            document.addEventListener('DOMContentLoaded', () => {
+              loadModels();
+              if (hasDefault) { showResumeCard(); loadResumeInfo(); } else switchToUpload();
+              setupDrop();
+              initPrompt();
+              loadHistoryCount();
+
+              const savedKey = localStorage.getItem('rt_gemini_key');
+              if (savedKey) {
+                document.getElementById('gemini-api-key').value = savedKey;
+                document.getElementById('pipeline-api-key').value = savedKey;
+                document.getElementById('pipeline-api-key-custom').value = savedKey;
+                fetch('/gemini-models', {
+                  method: 'POST', headers: {'Content-Type':'application/json'},
+                  body: JSON.stringify({api_key: savedKey})
+                }).then(r=>r.json()).then(d=>{
+                  if (d.models && d.models.length) {
+                    allGeminiModels = d.models;
+                    renderGeminiDropdown(allGeminiModels);
+                    const preferred = allGeminiModels.find(m=>m.id.includes('pro'))||allGeminiModels.find(m=>m.id.includes('flash')&&!m.id.includes('lite'))||allGeminiModels[0];
+                    if (preferred) selectGeminiModel(preferred);
+                    document.getElementById('gemini-model-wrap').style.display = '';
+                    showGeminiKeyHint(`✓ ${allGeminiModels.length} models loaded · key saved to browser`,'ok');
+                    document.getElementById('gemini-fetch-btn').textContent = '↻ Reload';
+                    allPipelineGeminiModels = d.models;
+                    renderPipelineGeminiDropdown(d.models);
+                    const pref2 = d.models.find(m=>m.id.includes('flash-lite'))||d.models[0];
+                    if (pref2) selectPipelineGeminiModel(pref2);
+                    document.getElementById('pipeline-gemini-model-wrap').style.display='';
+                  }
+                }).catch(()=>{});
+              }
+
+              document.getElementById('gemini-api-key').addEventListener('keydown', e => {
+                if (e.key === 'Enter') fetchGeminiModels();
+              });
+            });
+
+            // ── VIEW SWITCHING ────────────────────────────────────────────────────────
+            function switchView(v) {
+              document.getElementById('view-tailor').style.display = v==='tailor' ? '' : 'none';
+              document.getElementById('view-history').style.display = v==='history' ? '' : 'none';
+              document.getElementById('tab-tailor').classList.toggle('active', v==='tailor');
+              document.getElementById('tab-history').classList.toggle('active', v==='history');
+              if (v === 'history') renderHistory();
+            }
+
+            // ── PROVIDER ──────────────────────────────────────────────────────────────
+            function setProvider(p) {
+              currentProvider = p;
+              ['lm','gemini','pipeline'].forEach(id => {
+                const btn = document.getElementById('prov-'+id);
+                const panel = document.getElementById('panel-'+id);
+                btn.classList.toggle('active', id === p);
+                if (id === 'pipeline') btn.classList.toggle('pipeline-active', id === p);
+                if (panel) panel.style.display = id === p ? '' : 'none';
+              });
+              document.getElementById('lm-pill').style.display = p === 'gemini' ? 'none' : '';
+              const runBtn = document.getElementById('run-btn');
+              runBtn.textContent = p === 'pipeline' ? '⚡ Run Pipeline →' : 'Tailor Resume →';
+              runBtn.className = p === 'pipeline' ? 'btn btn-pipeline btn-run' : 'btn btn-primary btn-run';
+            }
+            function setPipelineConfig(mode) {
+              pipelineConfigMode = mode;
+              document.getElementById('pcfg-default').classList.toggle('active', mode==='default');
+              document.getElementById('pcfg-custom').classList.toggle('active', mode==='custom');
+              document.getElementById('pipeline-default-panel').style.display = mode==='default' ? '' : 'none';
+              document.getElementById('pipeline-custom-panel').style.display = mode==='custom' ? '' : 'none';
+            }
+
+            // ── PROMPT ────────────────────────────────────────────────────────────────
+            function initPrompt() {
+              if (!localStorage.getItem('rt_prompt_v2')) localStorage.setItem('rt_prompt_v2', DEFAULT_PROMPT);
+              updatePromptDisplay();
+            }
+            function updatePromptDisplay() {
+              const p = localStorage.getItem('rt_prompt_v2') || DEFAULT_PROMPT;
+              document.getElementById('prompt-display').textContent = p.slice(0,140) + (p.length>140?'…':'');
+            }
+            function openPromptModal() {
+              document.getElementById('prompt-editor').value = localStorage.getItem('rt_prompt_v2')||DEFAULT_PROMPT;
+              document.getElementById('prompt-modal').classList.add('open');
+            }
+            function closePromptModal() { document.getElementById('prompt-modal').classList.remove('open'); }
+            function savePrompt() {
+              localStorage.setItem('rt_prompt_v2', document.getElementById('prompt-editor').value);
+              updatePromptDisplay();
+              closePromptModal();
+            }
+            function resetPrompt() {
+              if (!confirm('Reset to the default system prompt? This cannot be undone.')) return;
+              localStorage.setItem('rt_prompt_v2', DEFAULT_PROMPT);
+              document.getElementById('prompt-editor').value = DEFAULT_PROMPT;
+              updatePromptDisplay();
+            }
+            document.getElementById('prompt-modal').addEventListener('click', function(e){ if(e.target===this) closePromptModal(); });
+
+            // ── ADVANCED ──────────────────────────────────────────────────────────────
+            function toggleAdvanced() {
+              document.getElementById('adv-toggle').classList.toggle('open');
+              document.getElementById('adv-panel').classList.toggle('open');
+            }
+            function updateRange(id,valId) {
+              document.getElementById(valId).textContent = parseFloat(document.getElementById(id).value).toFixed(2);
+            }
+            function resetAdvanced() {
+              document.getElementById('cfg-temp').value=0.3; document.getElementById('cfg-temp-val').textContent='0.30';
+              document.getElementById('cfg-top-p').value=0.95; document.getElementById('cfg-top-p-val').textContent='0.95';
+              document.getElementById('cfg-max-tokens').value=8192;
+              document.getElementById('cfg-top-k').value=0;
+              document.getElementById('cfg-rep-pen').value=1.1;
+              document.getElementById('cfg-ctx').value='';
+              document.getElementById('cfg-seed').value=-1;
+            }
+            function getAdvancedConfig() {
+              return {
+                temperature: parseFloat(document.getElementById('cfg-temp').value),
+                top_p: parseFloat(document.getElementById('cfg-top-p').value),
+                max_tokens: parseInt(document.getElementById('cfg-max-tokens').value),
+                top_k: parseInt(document.getElementById('cfg-top-k').value)||undefined,
+                repeat_penalty: parseFloat(document.getElementById('cfg-rep-pen').value),
+                context_length: document.getElementById('cfg-ctx').value?parseInt(document.getElementById('cfg-ctx').value):undefined,
+                seed: parseInt(document.getElementById('cfg-seed').value),
+              };
+            }
+
+            // ── LM STUDIO MODELS ──────────────────────────────────────────────────────
+            let allModels = [];
+            let selectedModel = '';
+
+            async function loadModels() {
+              const pill = document.getElementById('lm-pill');
+              const txt = document.getElementById('lm-pill-text');
+              try {
+                const d = await fetch('/models').then(r=>r.json());
+                if (d.online && d.models.length) {
+                  allModels = d.models;
+                  pill.className='status-pill online';
+                  txt.textContent='LM Studio online';
+                  if (!selectedModel && allModels.length) selectModel(allModels[0]);
+                  else renderModelDropdown(allModels);
+                  renderPipelineLocalDropdown(allModels);
+                  if (!selectedPipelineLocalModel && allModels.length) {
+                    const pref = allModels.find(m=>m.id.toLowerCase().includes(DEFAULT_LOCAL_MODEL_FOR_PIPELINE))||allModels[0];
+                    if (pref) selectPipelineLocalModel(pref);
+                  }
+                } else {
+                  pill.className='status-pill offline';
+                  txt.textContent='LM Studio offline';
+                  document.getElementById('model-picker-label').textContent='No models found';
+                }
+              } catch(e) {
+                pill.className='status-pill offline';
+                txt.textContent='LM Studio offline';
+                document.getElementById('model-picker-label').textContent='Cannot connect';
+              }
+            }
+            function renderModelDropdown(models) {
+              const dd = document.getElementById('model-dropdown');
+              dd.innerHTML = models.map((m,idx) => {
+                const ctx = m.context_length ? (m.context_length>=1000?(m.context_length/1000).toFixed(0)+'k':m.context_length)+'ctx' : '';
+                return `<div class="model-opt${m.id===selectedModel?' selected':''}" data-idx="${idx}" onclick="selectModel(allModels[${idx}])">${esc(m.id)}${ctx?`<span class="mtag mtag-quant">${ctx}</span>`:''}</div>`;
+              }).join('');
+            }
+            function selectModel(m) {
+              selectedModel = m.id;
+              document.getElementById('model-select').value = m.id;
+              document.getElementById('model-picker-label').textContent = m.id;
+              const ctx = m.context_length ? (m.context_length>=1000?(m.context_length/1000).toFixed(0)+'k':m.context_length)+'ctx' : '';
+              document.getElementById('model-picker-tags').innerHTML = ctx?`<span class="mtag mtag-quant">${ctx}</span>`:'';
+              renderModelDropdown(allModels);
+              document.getElementById('model-dropdown').classList.remove('open');
+              document.getElementById('model-picker-btn').classList.remove('open');
+            }
+            function toggleModelDropdown() {
+              document.getElementById('model-dropdown').classList.toggle('open');
+              document.getElementById('model-picker-btn').classList.toggle('open');
+            }
+
+            // ── GEMINI MODELS ─────────────────────────────────────────────────────────
+            let allGeminiModels = [];
+            let selectedGeminiModel = '';
+
+            function showGeminiKeyHint(msg, type='') {
+              const el = document.getElementById('gemini-key-hint');
+              el.textContent = msg;
+              el.className = 'apikey-hint' + (type?' hint-'+type:'');
+            }
+            async function fetchGeminiModels() {
+              const key = document.getElementById('gemini-api-key').value.trim();
+              if (!key) return showGeminiKeyHint('Paste your API key first.','error');
+              showGeminiKeyHint('Loading models…');
+              localStorage.setItem('rt_gemini_key', key);
+              document.getElementById('pipeline-api-key').value = key;
+              document.getElementById('pipeline-api-key-custom').value = key;
+              try {
+                const r = await fetch('/gemini-models',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({api_key:key})});
+                const d = await r.json();
+                if (!r.ok||d.error) return showGeminiKeyHint(d.error||'Failed to fetch models.','error');
+                allGeminiModels = d.models;
+                renderGeminiDropdown(allGeminiModels);
+                const preferred = allGeminiModels.find(m=>m.id.includes('pro'))||allGeminiModels.find(m=>m.id.includes('flash')&&!m.id.includes('lite'))||allGeminiModels[0];
+                if (preferred) selectGeminiModel(preferred);
+                document.getElementById('gemini-model-wrap').style.display = '';
+                showGeminiKeyHint(`✓ ${allGeminiModels.length} models loaded · key saved to browser`,'ok');
+                document.getElementById('gemini-fetch-btn').textContent = '↻ Reload';
+              } catch(e) { showGeminiKeyHint('Network error: '+e.message,'error'); }
+            }
+            function renderGeminiDropdown(models) {
+              const dd = document.getElementById('gemini-model-dropdown');
+              dd.innerHTML = models.map((m,idx) => {
+                const ctx = m.input_token_limit ? (m.input_token_limit>=1000?(m.input_token_limit/1000).toFixed(0)+'k':m.input_token_limit)+'ctx':'';
+                return `<div class="model-opt${m.id===selectedGeminiModel?' selected':''}" data-idx="${idx}" onclick="selectGeminiModel(allGeminiModels[${idx}])">${esc(m.id)}${ctx?`<span class="mtag mtag-quant">${ctx}</span>`:''}</div>`;
+              }).join('');
+            }
+            function selectGeminiModel(m) {
+              selectedGeminiModel = m.id;
+              document.getElementById('gemini-model-select').value = m.id;
+              document.getElementById('gemini-model-picker-label').textContent = m.id;
+              const ctx = m.input_token_limit ? (m.input_token_limit>=1000?(m.input_token_limit/1000).toFixed(0)+'k':m.input_token_limit)+'ctx':'';
+              document.getElementById('gemini-model-picker-tags').innerHTML = ctx?`<span class="mtag mtag-quant">${ctx}</span>`:'';
+              renderGeminiDropdown(allGeminiModels);
+              document.getElementById('gemini-model-dropdown').classList.remove('open');
+              document.getElementById('gemini-model-picker-btn').classList.remove('open');
+            }
+            function toggleGeminiDropdown() {
+              document.getElementById('gemini-model-dropdown').classList.toggle('open');
+              document.getElementById('gemini-model-picker-btn').classList.toggle('open');
+            }
+            function toggleApiKeyVisibility() {
+              const inp = document.getElementById('gemini-api-key');
+              inp.type = inp.type === 'password' ? 'text' : 'password';
+            }
+
+            // ── PIPELINE MODELS ───────────────────────────────────────────────────────
+            let allPipelineGeminiModels = [];
+            let selectedPipelineGeminiModel = '';
+            let selectedPipelineLocalModel = '';
+
+            function renderPipelineLocalDropdown(models) {
+              const dd = document.getElementById('pipeline-local-dropdown');
+              dd.innerHTML = models.map((m,idx)=>`<div class="model-opt${m.id===selectedPipelineLocalModel?' selected':''}" data-idx="${idx}" onclick="selectPipelineLocalModel(allModels[${idx}])">${esc(m.id)}</div>`).join('');
+            }
+            function selectPipelineLocalModel(m) {
+              selectedPipelineLocalModel = m.id;
+              document.getElementById('pipeline-local-model').value = m.id;
+              document.getElementById('pipeline-local-picker-label').textContent = m.id;
+              renderPipelineLocalDropdown(allModels);
+              document.getElementById('pipeline-local-dropdown').classList.remove('open');
+              document.getElementById('pipeline-local-picker-btn').classList.remove('open');
+            }
+            function togglePipelineLocalDropdown() {
+              document.getElementById('pipeline-local-dropdown').classList.toggle('open');
+              document.getElementById('pipeline-local-picker-btn').classList.toggle('open');
+            }
+            function renderPipelineGeminiDropdown(models) {
+              const dd = document.getElementById('pipeline-gemini-dropdown');
+              dd.innerHTML = models.map((m,idx)=>`<div class="model-opt${m.id===selectedPipelineGeminiModel?' selected':''}" data-idx="${idx}" onclick="selectPipelineGeminiModel(allPipelineGeminiModels[${idx}])">${esc(m.id)}</div>`).join('');
+            }
+            function selectPipelineGeminiModel(m) {
+              selectedPipelineGeminiModel = m.id;
+              document.getElementById('pipeline-gemini-model').value = m.id;
+              document.getElementById('pipeline-gemini-picker-label').textContent = m.id;
+              renderPipelineGeminiDropdown(allPipelineGeminiModels);
+              document.getElementById('pipeline-gemini-dropdown').classList.remove('open');
+              document.getElementById('pipeline-gemini-picker-btn').classList.remove('open');
+            }
+            function togglePipelineGeminiDropdown() {
+              document.getElementById('pipeline-gemini-dropdown').classList.toggle('open');
+              document.getElementById('pipeline-gemini-picker-btn').classList.toggle('open');
+            }
+            async function fetchPipelineGeminiModels() {
+              const key = document.getElementById('pipeline-api-key-custom').value.trim();
+              if (!key) return;
+              try {
+                const r = await fetch('/gemini-models',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({api_key:key})});
+                const d = await r.json();
+                if (d.models && d.models.length) {
+                  allPipelineGeminiModels = d.models;
+                  renderPipelineGeminiDropdown(d.models);
+                  const pref = d.models.find(m=>m.id.includes('flash-lite'))||d.models[0];
+                  if (pref) selectPipelineGeminiModel(pref);
+                  document.getElementById('pipeline-gemini-model-wrap').style.display='';
+                }
+              } catch(e) {}
+            }
+            function togglePipelineApiKeyVisibility() {
+              const inp = document.getElementById('pipeline-api-key');
+              inp.type = inp.type==='password'?'text':'password';
+            }
+            function togglePipelineCustomApiKeyVisibility() {
+              const inp = document.getElementById('pipeline-api-key-custom');
+              inp.type = inp.type==='password'?'text':'password';
+            }
+
+            // ── RESUME UPLOAD ─────────────────────────────────────────────────────────
+            function switchToUpload() {
+              document.getElementById('resume-card').style.display='none';
+              document.getElementById('drop-zone').style.display='';
+              resumeReady=false;
+            }
+            function showResumeCard() {
+              document.getElementById('resume-card').style.display='';
+              document.getElementById('drop-zone').style.display='none';
+              resumeReady=true;
+            }
+            async function loadResumeInfo() {
+              try {
+                const d = await fetch('/resume-info').then(r=>r.json());
+                if (d.paragraphs) {
+                  document.getElementById('resume-meta').textContent = `${d.paragraphs} paragraphs · ${d.words} words`;
+                  showResumeCard();
+                }
+              } catch(e) {}
+            }
+            async function handleFile(file) {
+              if (!file) return;
+              const fd = new FormData(); fd.append('file', file);
+              try {
+                const r = await fetch('/upload-resume',{method:'POST',body:fd});
+                const d = await r.json();
+                if (d.success) {
+                  document.getElementById('resume-meta').textContent = `${d.paragraphs} paragraphs · ${d.words} words`;
+                  showResumeCard();
+                } else { showError(d.error||'Upload failed.'); }
+              } catch(e) { showError('Upload error: '+e.message); }
+            }
+            let isDragging = false;
+            function setupDrop() {
+              const dz = document.getElementById('drop-zone');
+              dz.addEventListener('dragover', e=>{ e.preventDefault(); if(!isDragging){isDragging=true;dz.classList.add('drag-over');} });
+              dz.addEventListener('dragleave', ()=>{ isDragging=false; dz.classList.remove('drag-over'); });
+              dz.addEventListener('drop', e=>{ e.preventDefault(); isDragging=false; dz.classList.remove('drag-over'); const f=e.dataTransfer.files[0]; if(f&&f.name.endsWith('.docx')) handleFile(f); });
+            }
+            function togglePreview() {
+              const p = document.getElementById('resume-preview');
+              if (p.style.display==='none'||!p.style.display) {
+                fetch('/resume-info').then(r=>r.json()).then(d=>{
+                  p.innerHTML = (d.paragraphs_text||[]).map(t=>`<div class="preview-line">${esc(t)}</div>`).join('');
+                  p.style.display='';
+                });
+              } else { p.style.display='none'; }
+            }
+
+            // ── TAILOR ────────────────────────────────────────────────────────────────
+            async function runTailor() {
+              hideError(); hideResults();
+              const jd = document.getElementById('jd-text').value.trim();
+              if (!resumeReady) return showError('Upload your resume first.');
+              if (!jd) return showError('Job description is empty.');
+              if (currentProvider === 'pipeline') await runPipeline(jd);
+              else if (currentProvider === 'gemini') await runGemini(jd);
+              else await runLmStudio(jd);
+            }
+
+            async function runLmStudio(jd) {
+              const sysPrompt = (localStorage.getItem('rt_prompt_v2')||DEFAULT_PROMPT).trim();
+              const model = document.getElementById('model-select').value;
+              const jobTitle = document.getElementById('job-title').value.trim();
+              if (!model) return showError('No model selected — is LM Studio running?');
+              const adv = getAdvancedConfig();
+              setBusy(true,'lm');
+              try {
+                const r = await fetch('/tailor',{
+                  method:'POST', headers:{'Content-Type':'application/json'},
+                  body: JSON.stringify({system_prompt:sysPrompt,jd_text:jd,model,job_title:jobTitle,...adv})
+                });
+                const d = await r.json();
+                if (!r.ok||d.error) showError(d.error||'Unexpected error.',d.hint||'',d.raw_preview||'');
+                else { renderResults(d,false); saveToHistory(d,'lm',model,jobTitle,jd); }
+              } catch(e) { showError('Network error: '+e.message); }
+              finally { setBusy(false); }
+            }
+
+            async function runGemini(jd) {
+              const sysPrompt = (localStorage.getItem('rt_prompt_v2')||DEFAULT_PROMPT).trim();
+              const apiKey = document.getElementById('gemini-api-key').value.trim();
+              const geminiModel = selectedGeminiModel;
+              const jobTitle = document.getElementById('job-title').value.trim();
+              if (!apiKey) return showError('Enter your Gemini API key above.');
+              if (!geminiModel) return showError('Click "Load Models" to fetch available Gemini models first.');
+              const adv = getAdvancedConfig();
+              setBusy(true,'gemini');
+              try {
+                const r = await fetch('/tailor-gemini',{
+                  method:'POST', headers:{'Content-Type':'application/json'},
+                  body: JSON.stringify({api_key:apiKey,model:geminiModel,system_prompt:sysPrompt,jd_text:jd,job_title:jobTitle,temperature:adv.temperature,max_tokens:adv.max_tokens,top_p:adv.top_p})
+                });
+                const d = await r.json();
+                if (!r.ok||d.error) showError(d.error||'Unexpected error.',d.hint||'',d.raw_preview||'');
+                else { renderResults(d,false); saveToHistory(d,'gemini',geminiModel,jobTitle,jd); }
+              } catch(e) { showError('Network error: '+e.message); }
+              finally { setBusy(false); }
+            }
+
+            async function runPipeline(jd) {
+              let localModel, apiKey, geminiModel;
+              if (pipelineConfigMode === 'default') {
+                localModel = selectedModel || (allModels.length ? allModels[0].id : '');
+                apiKey = document.getElementById('pipeline-api-key').value.trim();
+                geminiModel = DEFAULT_GEMINI_MODEL_FOR_PIPELINE;
+              } else {
+                localModel = selectedPipelineLocalModel;
+                apiKey = document.getElementById('pipeline-api-key-custom').value.trim();
+                geminiModel = selectedPipelineGeminiModel || DEFAULT_GEMINI_MODEL_FOR_PIPELINE;
+              }
+              if (!localModel) return showError('No local model available — is LM Studio running?');
+              if (!apiKey) return showError('Gemini API key is required for the pipeline. Enter it above.');
+              localStorage.setItem('rt_gemini_key', apiKey);
+              const adv = getAdvancedConfig();
+              setBusy(true,'pipeline');
+              startPipelineStepAnimation();
+              try {
+                const r = await fetch('/tailor-pipeline',{
+                  method:'POST', headers:{'Content-Type':'application/json'},
+                  body: JSON.stringify({jd_text:jd,api_key:apiKey,local_model:localModel,gemini_model:geminiModel,top_k:adv.top_k,repeat_penalty:adv.repeat_penalty,seed:adv.seed,context_length:adv.context_length})
+                });
+                const d = await r.json();
+                stopPipelineStepAnimation(d.pipeline_log);
+                if (!r.ok||d.error) showError(d.error||'Pipeline error.',d.hint||'',d.raw_preview||'');
+                else { renderResults(d,true); saveToHistory(d,'pipeline',localModel+'+'+geminiModel,'',jd); }
+              } catch(e) { showError('Network error: '+e.message); resetPipelineSteps(); }
+              finally { setBusy(false); }
+            }
+
+            function setBusy(on, provider) {
+              const btn = document.getElementById('run-btn');
+              const prog = document.getElementById('progress-wrap');
+              btn.disabled = on;
+              const pipelineProgress = document.getElementById('pipeline-progress');
+              const simpleProgress = document.getElementById('simple-progress');
+              if (on) {
+                prog.className = 'progress-wrap show';
+                if (provider === 'pipeline') {
+                  pipelineProgress.style.display = '';
+                  simpleProgress.style.display = 'none';
+                  btn.textContent = '⟳ Running Pipeline...';
+                } else {
+                  pipelineProgress.style.display = 'none';
+                  simpleProgress.style.display = '';
+                  document.getElementById('progress-label-text').textContent =
+                    provider==='gemini' ? 'Sending to Gemini — this may take a minute...' :
+                    'Sending to LM Studio — this may take a minute or two...';
+                  btn.textContent = '⟳ Tailoring...';
+                }
+              } else {
+                prog.className = 'progress-wrap';
+                if (currentProvider === 'pipeline') btn.textContent = '⚡ Run Pipeline →';
+                else btn.textContent = 'Tailor Resume →';
+              }
+            }
+
+            // ── PIPELINE STEP ANIMATION ───────────────────────────────────────────────
+            let _pipelineTimer = null;
+            function startPipelineStepAnimation() {
+              resetPipelineSteps();
+              const timings = [18000, 18000, 22000, 18000, 2000];
+              let step = 1;
+              function activateStep(s) {
+                if (s > 5) return;
+                document.getElementById('pstep-'+s).classList.add('active');
+                _pipelineTimer = setTimeout(()=>{ document.getElementById('pstep-'+s).classList.add('done'); document.getElementById('pstep-'+s).classList.remove('active'); step++; activateStep(step); }, timings[s-1]);
+              }
+              activateStep(1);
+            }
+            function stopPipelineStepAnimation(log) {
+              if (_pipelineTimer) clearTimeout(_pipelineTimer);
+              if (!log) return;
+              log.forEach(entry => {
+                const el = document.getElementById('pstep-'+entry.step);
+                if (!el) return;
+                el.classList.remove('active');
+                if (entry.status==='done') el.classList.add('done');
+                if (entry.result_preview) document.getElementById('pstep-'+entry.step+'-detail').textContent = entry.result_preview;
+              });
+            }
+            function resetPipelineSteps() {
+              for (let i=1;i<=5;i++) {
+                const el = document.getElementById('pstep-'+i);
+                if (el) { el.classList.remove('active','done'); }
+              }
+            }
+
+            // ── RESULTS ───────────────────────────────────────────────────────────────
+            function renderResults(d, isPipeline) {
+              const wrap = document.getElementById('results-wrap');
+              const list = document.getElementById('changes-list');
+              const badge = document.getElementById('results-badge');
+              document.getElementById('results-title').textContent = `${d.changes_count} change${d.changes_count!==1?'s':''} applied`;
+              badge.textContent = `${d.changes_count} edit${d.changes_count!==1?'s':''}`;
+              badge.className = isPipeline ? 'badge pipeline-badge' : 'badge';
+              const analysisCard = document.getElementById('analysis-card');
+              if (isPipeline && d.step1_analysis) {
+                const a = d.step1_analysis;
+                document.getElementById('an-role').textContent = a.role_type||'—';
+                document.getElementById('an-seniority').textContent = [a.seniority, a.domain].filter(Boolean).join(' · ')||'—';
+                document.getElementById('an-keywords').innerHTML = (a.keywords||[]).map(k=>`<span class="kw-tag">${esc(k)}</span>`).join('');
+                document.getElementById('an-gaps').innerHTML = (a.skill_gaps||[]).map(k=>`<span class="kw-tag" style="background:var(--amber-soft);border-color:rgba(245,158,11,.2);color:var(--amber)">${esc(k)}</span>`).join('');
+                analysisCard.style.display = '';
+              } else { analysisCard.style.display='none'; }
+              list.innerHTML = '';
+              let lastSection = null;
+              (d.changes||[]).forEach((c,i) => {
+                if (c.section && c.section !== lastSection) {
+                  const div = document.createElement('div');
+                  div.className = 'section-divider';
+                  div.innerHTML = `<span class="section-divider-label">${esc(c.section)}</span>`;
+                  list.appendChild(div);
+                  lastSection = c.section;
+                }
+                const card = document.createElement('div');
+                card.className = 'change-card';
+                card.innerHTML = `
+                  <div class="change-card-header">
+                    <span>Change ${i+1}</span>
+                    ${c.section?`<span class="change-section-tag">${esc(c.section)}</span>`:''}
+                  </div>
+                  <div class="change-card-body">
+                    <div class="change-col before"><div class="col-label">Before</div>${esc(c.original)}</div>
+                    <div class="change-col after"><div class="col-label">After</div>${esc(c.replacement)}</div>
+                  </div>`;
+                list.appendChild(card);
+              });
+              if (!d.changes?.length) {
+                list.innerHTML = '<p style="font-size:0.82rem;color:var(--text-muted);padding:1rem 0">No changes needed — resume already matches the JD well.</p>';
+              }
+              document.getElementById('dl-filename').textContent = d.filename||'resume_tailored.docx';
+              document.getElementById('dl-link').href = `/download/${d.filename}`;
+              document.getElementById('dl-pdf-link').href = `/download-pdf/${d.filename}`;
+              wrap.className = 'results-wrap show';
+            }
+            function hideResults() { document.getElementById('results-wrap').className='results-wrap'; }
+
+            // ── HISTORY ───────────────────────────────────────────────────────────────
+            const HISTORY_KEY = 'rt_history';
+
+            function saveToHistory(d, provider, model, jobTitle, jd) {
+              const history = JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]');
+              history.unshift({
+                id: Date.now(),
+                ts: new Date().toLocaleString(),
+                job_title: jobTitle || 'Untitled',
+                provider,
+                model,
+                jd_preview: jd.slice(0,120),
+                filename: d.filename,
+                changes: d.changes_count||0,
+              });
+              // Keep last 50
+              localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(0,50)));
+              loadHistoryCount();
+            }
+
+            function loadHistoryCount() {
+              const history = JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]');
+              const badge = document.getElementById('history-count');
+              if (history.length > 0) {
+                badge.textContent = history.length;
+                badge.style.display = '';
+              } else {
+                badge.style.display = 'none';
+              }
+            }
+
+            function renderHistory() {
+              const history = JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]');
+              const list = document.getElementById('history-list');
+              const empty = document.getElementById('history-empty');
+              const sub = document.getElementById('history-sub');
+              if (!history.length) {
+                list.innerHTML = '';
+                empty.style.display = '';
+                sub.textContent = 'No runs yet';
+                return;
+              }
+              empty.style.display = 'none';
+              sub.textContent = `${history.length} run${history.length!==1?'s':''} saved locally`;
+              list.innerHTML = history.map(item => `
+                <div class="history-item">
+                  <div class="history-item-icon">📄</div>
+                  <div class="history-item-body">
+                    <div class="history-item-title">${esc(item.job_title)}</div>
+                    <div class="history-item-meta">
+                      <span>${esc(item.ts)}</span>
+                      <span>${esc(item.provider)} · ${esc(item.model)}</span>
+                      <span>${item.changes} change${item.changes!==1?'s':''}</span>
+                    </div>
+                    <div class="history-item-jd">${esc(item.jd_preview)}${item.jd_preview.length>=120?'…':''}</div>
+                  </div>
+                  <div class="history-item-actions">
+                    ${item.filename ? `<a class="btn btn-ghost" href="/download/${esc(item.filename)}" download title="Download">↓ .docx</a>` : ''}
+                    <button class="btn btn-ghost" onclick="deleteHistoryItem(${item.id})" title="Remove">✕</button>
+                  </div>
+                </div>
+              `).join('');
+            }
+
+            function deleteHistoryItem(id) {
+              const history = JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]').filter(i=>i.id!==id);
+              localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+              loadHistoryCount();
+              renderHistory();
+            }
+
+            function clearHistory() {
+              if (!confirm('Clear all run history? This cannot be undone.')) return;
+              localStorage.removeItem(HISTORY_KEY);
+              loadHistoryCount();
+              renderHistory();
+            }
+
+            // ── ERROR ─────────────────────────────────────────────────────────────────
+            function showError(msg, hint='', raw='') {
+              document.getElementById('error-msg').textContent = msg;
+              const hintEl = document.getElementById('error-hint');
+              hintEl.textContent = hint||''; hintEl.style.display = hint?'block':'none';
+              const rawWrap = document.getElementById('error-raw-wrap');
+              const rawEl = document.getElementById('error-raw');
+              if (raw) { rawEl.textContent=raw; rawWrap.style.display='block'; }
+              else rawWrap.style.display='none';
+              document.getElementById('error-wrap').className='error-wrap show';
+            }
+            function hideError() {
+              document.getElementById('error-wrap').className='error-wrap';
+              document.getElementById('error-raw').style.display='none';
+            }
+            function toggleRaw() {
+              const el = document.getElementById('error-raw');
+              const btn = el.previousElementSibling;
+              const open = el.style.display!=='none';
+              el.style.display = open?'none':'block';
+              btn.textContent = open?'▾ Show raw model output':'▴ Hide raw model output';
+            }
+
+            // ── JOB TITLE AUTO-EXTRACT ────────────────────────────────────────────────
+            function autoExtractJobTitle() {
+              const titleInput = document.getElementById('job-title');
+              if (titleInput.dataset.userEdited) return; // don't overwrite manual input
+              const jd = document.getElementById('jd-text').value;
+              if (!jd.trim()) return;
+              const extracted = extractJobTitleFromJD(jd);
+              if (extracted) titleInput.value = extracted;
+            }
+            function extractJobTitleFromJD(jd) {
+              const lines = jd.split('\n').map(l => l.trim()).filter(l => l.length > 2);
+              // Pattern: "Role Title at Company" or "Role Title, Company"
+              for (const line of lines.slice(0, 8)) {
+                const atMatch = line.match(/^([A-Z][\w\s,()/-]{2,40}?)\s+(?:at|@)\s+([A-Z][\w\s&.-]{1,30})/);
+                if (atMatch) return `${atMatch[1].trim()} @ ${atMatch[2].trim()}`.slice(0, 50);
+                // Pattern: "About the Role" followed by context (skip)
+                // Pattern: "Join [Company]" — extract company
+                const joinMatch = line.match(/^Join\s+([A-Z][\w\s&.-]{1,25})/);
+                if (joinMatch) return joinMatch[1].trim().slice(0, 50);
+                // Pattern: short title-like first line
+                if (line.length < 55 && /^[A-Z]/.test(line) && !/[.!?]$/.test(line) && line.split(' ').length <= 8) {
+                  return line.slice(0, 50);
+                }
+              }
+              return '';
+            }
+
+            // ── UTILS ─────────────────────────────────────────────────────────────────
+            function esc(s) {
+              return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+            }
+    </script>
+  </body>
+</html>
