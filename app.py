@@ -2088,5 +2088,6 @@ def download_pdf(filename):
 
 
 if __name__ == "__main__":
-    print("\n  Resume Tailor -> http://localhost:8000\n")
-    app.run(port=8000)
+    port = int(os.environ.get("PORT", 8000))
+    print(f"\n  Resume Tailor -> http://0.0.0.0:{port}\n")
+    app.run(host="0.0.0.0", port=port)
