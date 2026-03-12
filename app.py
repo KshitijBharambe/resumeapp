@@ -19,6 +19,108 @@ UPLOAD_FOLDER = os.path.join(BASE_DIR, "resume")
 OUTPUT_FOLDER = os.path.join(BASE_DIR, "outputs")
 
 
+def _get_chat_url_and_headers(provider, lm_url, api_key):
+    """Return (chat_completions_url, extra_headers) for the given provider."""
+    local_providers = {"lmstudio", "ollama", "custom"}
+    if provider in local_providers:
+        base = (lm_url or PROVIDER_BASE_URLS.get(provider, "http://localhost:1234")).rstrip("/")
+        headers = {}
+    else:
+        base = PROVIDER_BASE_URLS.get(provider, "").rstrip("/")
+        headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
+    if provider == "openrouter":
+        headers["HTTP-Referer"] = "https://resume-tailor.onrender.com"
+    return f"{base}/v1/chat/completions", headers
+
+
+def _tailor_anthropic(data):
+    """Handle resume tailoring via the Anthropic Messages API."""
+    api_key = data.get("api_key", "").strip()
+    model = data.get("model", "claude-sonnet-4-6").strip()
+    system_prompt = data.get("system_prompt", "").strip()
+    jd_text = data.get("jd_text", "").strip()
+    job_title = data.get("job_title", "").strip()
+    max_tokens = int(data.get("max_tokens", 8192))
+
+    if not api_key:
+        return jsonify({"error": "Anthropic API key is required."}), 400
+    if not system_prompt:
+        return jsonify({"error": "System prompt cannot be empty."}), 400
+    if not jd_text:
+        return jsonify({"error": "Job description cannot be empty."}), 400
+    if not os.path.exists(DEFAULT_RESUME):
+        return jsonify({"error": "No resume found - please upload one first."}), 400
+
+    resume_text = extract_resume_text(DEFAULT_RESUME)
+    resume_paras = get_resume_paragraphs(DEFAULT_RESUME)
+
+    combined_message = f"""JOB DESCRIPTION:
+---
+{jd_text}
+---
+
+CURRENT RESUME (full text):
+---
+{resume_text}
+---
+
+RESUME PARAGRAPHS (indexed):
+---
+{json.dumps(resume_paras, indent=2)}
+---
+
+Analyze the JD against the resume. Output ONLY a raw JSON array of changes.
+Use this exact format:
+[
+  {{"original": "exact paragraph text verbatim from resume", "replacement": "tailored version"}}
+]
+Only include paragraphs that actually change. If nothing needs changing, output: []"""
+
+    try:
+        resp = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            json={"model": model, "max_tokens": max_tokens, "system": system_prompt,
+                  "messages": [{"role": "user", "content": combined_message}]},
+            headers={"x-api-key": api_key, "anthropic-version": "2023-06-01",
+                     "content-type": "application/json"},
+            timeout=300,
+        )
+        if resp.status_code == 401:
+            return jsonify({"error": "Invalid Anthropic API key. Check console.anthropic.com."}), 401
+        if resp.status_code == 429:
+            return jsonify({"error": "Anthropic API rate limit exceeded. Try again shortly."}), 429
+        resp.raise_for_status()
+        raw = resp.json()["content"][0]["text"]
+    except requests.exceptions.ConnectionError:
+        return jsonify({"error": "Cannot connect to Anthropic API."}), 503
+    except requests.exceptions.Timeout:
+        return jsonify({"error": "Anthropic API timed out."}), 504
+    except Exception as e:
+        return jsonify({"error": f"Anthropic API error: {e}"}), 500
+
+    raw = _strip_think(raw)
+    _last_raw["text"] = raw
+    _last_raw["ts"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    replacements = extract_json_array(raw)
+    if replacements is None:
+        preview = raw[:1200] if raw else "(empty)"
+        return jsonify({"error": "Could not extract JSON array from Anthropic response.",
+                        "hint": "Model returned prose without a JSON array.",
+                        "raw_preview": preview}), 500
+
+    enriched = enrich_with_sections(replacements, resume_paras)
+    try:
+        out_name = make_output_name(job_title)
+        out_path = os.path.join(OUTPUT_FOLDER, out_name)
+        apply_replacements(DEFAULT_RESUME, out_path, replacements)
+    except Exception as e:
+        return jsonify({"error": f"Failed to write .docx: {e}"}), 500
+
+    return jsonify({"success": True, "filename": out_name, "docx_b64": _read_docx_b64(out_path),
+                    "changes_count": len(enriched), "changes": enriched})
+
+
 def make_output_name(job_title, prefix="resume"):
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     if job_title:
@@ -29,6 +131,34 @@ DEFAULT_RESUME = os.path.join(UPLOAD_FOLDER, "base_resume.docx")
 LM_STUDIO_BASE_URL = os.environ.get("LM_STUDIO_BASE_URL", "http://localhost:1234")
 LM_STUDIO_URL = f"{LM_STUDIO_BASE_URL.rstrip('/')}/v1/chat/completions"
 LM_STUDIO_MODELS_URL = f"{LM_STUDIO_BASE_URL.rstrip('/')}/v1/models"
+
+# Base URLs for cloud/local providers
+PROVIDER_BASE_URLS = {
+    "lmstudio":   LM_STUDIO_BASE_URL,
+    "ollama":     "http://localhost:11434",
+    "openai":     "https://api.openai.com",
+    "groq":       "https://api.groq.com/openai",
+    "openrouter": "https://openrouter.ai/api",
+    "mistral":    "https://api.mistral.ai",
+}
+
+PROVIDER_DISPLAY = {
+    "lmstudio": "LM Studio", "ollama": "Ollama", "openai": "OpenAI",
+    "anthropic": "Anthropic", "gemini": "Gemini", "groq": "Groq",
+    "openrouter": "OpenRouter", "mistral": "Mistral", "custom": "Custom",
+}
+
+# Static model lists for providers without a listing API
+ANTHROPIC_MODELS = [
+    {"id": "claude-opus-4-6"},
+    {"id": "claude-sonnet-4-6"},
+    {"id": "claude-haiku-4-5-20251001"},
+]
+
+OPENAI_STATIC_MODELS = [
+    {"id": "gpt-4o"}, {"id": "gpt-4o-mini"}, {"id": "gpt-4-turbo"},
+    {"id": "o3-mini"}, {"id": "o4-mini"},
+]
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(OUTPUT_FOLDER, exist_ok=True)
@@ -378,13 +508,13 @@ def resume_info_data():
         return {"exists": False}
     text = extract_resume_text(DEFAULT_RESUME)
     doc = Document(DEFAULT_RESUME)
-    para_count = len([p for p in doc.paragraphs if p.text.strip()])
+    paras = [p.text.strip() for p in doc.paragraphs if p.text.strip()]
     return {
         "exists": True,
-        "word_count": len(text.split()),
-        "para_count": para_count,
+        "paragraphs": len(paras),
+        "words": len(text.split()),
         "filename": "base_resume.docx",
-        "preview": text[:400] + ("..." if len(text) > 400 else ""),
+        "paragraphs_text": paras,
     }
 
 
@@ -438,44 +568,141 @@ def resume_info():
 
 @app.route("/models")
 def get_models():
+    lm_url = request.args.get("lm_url", "").strip()
+    models_url = f"{lm_url.rstrip('/')}/v1/models" if lm_url else LM_STUDIO_MODELS_URL
     try:
-        r = requests.get(LM_STUDIO_MODELS_URL, timeout=4)
+        r = requests.get(models_url, timeout=4)
         raw = r.json().get("data", [])
         models = []
         for m in raw:
             compat = m.get("compatibility_type", "")
             quant = m.get("quantization", "")
             arch = m.get("arch", "")
-            # mlx = Apple Silicon Mac; gguf/exl2 = desktop (Windows/Linux)
             if compat == "mlx":
                 platform = "mac"
             elif compat in ("gguf", "exl2"):
                 platform = "desktop"
             else:
                 platform = ""
-            models.append(
-                {
-                    "id": m["id"],
-                    "platform": platform,
-                    "compat": compat,
-                    "quant": quant,
-                    "arch": arch,
-                }
-            )
+            models.append({"id": m["id"], "platform": platform, "compat": compat,
+                            "quant": quant, "arch": arch})
         return jsonify({"models": models, "online": True})
     except Exception:
         return jsonify({"models": [], "online": False})
 
 
+@app.route("/provider-models", methods=["POST"])
+def provider_models():
+    """Unified model listing for all providers."""
+    data = request.json or {}
+    provider = data.get("provider", "lmstudio").lower().strip()
+    api_key = data.get("api_key", "").strip()
+    lm_url = data.get("lm_url", "").strip()
+
+    # --- Anthropic: static list ---
+    if provider == "anthropic":
+        return jsonify({"models": ANTHROPIC_MODELS, "static": True})
+
+    # --- Gemini: use existing google-genai listing ---
+    if provider == "gemini":
+        if not api_key:
+            return jsonify({"error": "API key required"}), 400
+        try:
+            from google import genai
+            client = genai.Client(api_key=api_key)
+            raw = list(client.models.list())
+            models = []
+            for m in raw:
+                name = m.name.split("/")[-1] if "/" in m.name else m.name
+                if not any(x in name for x in ["gemini", "learnlm"]):
+                    continue
+                if "embedding" in name or "vision" in name:
+                    continue
+                tok = getattr(m, "input_token_limit", None) or getattr(m, "inputTokenLimit", None)
+                models.append({"id": name, "input_token_limit": tok})
+            models.sort(key=lambda x: x["id"])
+            return jsonify({"models": models})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+    # --- Local providers (LM Studio, Ollama, Custom) ---
+    if provider in ("lmstudio", "ollama", "custom"):
+        base = (lm_url or PROVIDER_BASE_URLS.get(provider, "http://localhost:1234")).rstrip("/")
+        # Ollama: try /api/tags first
+        if provider == "ollama":
+            try:
+                r = requests.get(f"{base}/api/tags", timeout=4)
+                r.raise_for_status()
+                raw = r.json().get("models", [])
+                models = [{"id": m["name"]} for m in raw]
+                return jsonify({"models": models, "online": True})
+            except Exception:
+                pass  # fall through to OpenAI-compat endpoint
+        try:
+            r = requests.get(f"{base}/v1/models", timeout=4)
+            r.raise_for_status()
+            raw = r.json().get("data", [])
+            models = []
+            for m in raw:
+                compat = m.get("compatibility_type", "")
+                platform = "mac" if compat == "mlx" else ("desktop" if compat in ("gguf", "exl2") else "")
+                models.append({"id": m["id"], "platform": platform,
+                                "compat": compat, "quant": m.get("quantization", "")})
+            return jsonify({"models": models, "online": True})
+        except Exception:
+            return jsonify({"models": [], "online": False})
+
+    # --- OpenAI-compatible cloud providers ---
+    base = PROVIDER_BASE_URLS.get(provider, "").rstrip("/")
+    if not base:
+        return jsonify({"error": f"Unknown provider: {provider}"}), 400
+    headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
+    if not api_key:
+        return jsonify({"error": "API key required"}), 400
+    try:
+        r = requests.get(f"{base}/v1/models", headers=headers, timeout=8)
+        if r.status_code == 401:
+            return jsonify({"error": "Invalid API key"}), 401
+        r.raise_for_status()
+        raw = r.json().get("data", [])
+        # Filter to chat-capable models
+        chat_keywords = ["gpt", "claude", "llama", "mistral", "mixtral", "gemma", "qwen",
+                         "deepseek", "command", "sonar", "hermes", "nous"]
+        models = []
+        for m in raw:
+            mid = m.get("id", "")
+            if any(k in mid.lower() for k in chat_keywords) or provider in ("groq", "mistral"):
+                models.append({"id": mid})
+        if not models:
+            models = [{"id": m.get("id", "")} for m in raw]
+        models.sort(key=lambda x: x["id"])
+        return jsonify({"models": models})
+    except requests.exceptions.ConnectionError:
+        return jsonify({"error": f"Cannot connect to {PROVIDER_DISPLAY.get(provider, provider)}"}), 503
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/tailor", methods=["POST"])
 def tailor():
     data = request.json or {}
+    provider = data.get("provider", "lmstudio").lower().strip()
+
+    # Route to specialized handlers
+    if provider == "gemini":
+        return tailor_gemini()
+    if provider == "anthropic":
+        return _tailor_anthropic(data)
+
+    # OpenAI-compatible path: lmstudio, ollama, openai, groq, openrouter, mistral, custom
     system_prompt = data.get("system_prompt", "").strip()
     jd_text = data.get("jd_text", "").strip()
     model = data.get("model", "").strip()
     job_title = data.get("job_title", "").strip()
+    api_key = data.get("api_key", "").strip()
+    lm_url = data.get("lm_url", "").strip()
 
-    # Advanced LM Studio config (all optional, fall back to safe defaults)
+    # Advanced config (all optional)
     temperature = float(data.get("temperature", 0.3))
     max_tokens = int(data.get("max_tokens", 4096))
     top_p = float(data.get("top_p", 0.95))
@@ -490,6 +717,9 @@ def tailor():
         return jsonify({"error": "Job description cannot be empty."}), 400
     if not os.path.exists(DEFAULT_RESUME):
         return jsonify({"error": "No resume found - please upload one first."}), 400
+
+    chat_url, extra_headers = _get_chat_url_and_headers(provider, lm_url, api_key)
+    provider_label = PROVIDER_DISPLAY.get(provider, provider)
 
     resume_text = extract_resume_text(DEFAULT_RESUME)
     resume_paras = get_resume_paragraphs(DEFAULT_RESUME)
@@ -520,7 +750,8 @@ Use this exact format:
 Only include paragraphs that actually change. If nothing needs changing, output: []
 Begin the JSON array now:"""
 
-    lm_payload = {
+    local_providers = {"lmstudio", "ollama", "custom"}
+    payload = {
         "model": model,
         "messages": [
             {"role": "system", "content": system_prompt},
@@ -530,44 +761,26 @@ Begin the JSON array now:"""
         "temperature": temperature,
         "max_tokens": max_tokens,
         "top_p": top_p,
-        "repeat_penalty": repeat_penalty,
         "stream": True,
     }
-    if top_k and int(top_k) > 0:
-        lm_payload["top_k"] = int(top_k)
-    if seed != -1:
-        lm_payload["seed"] = seed
-    if context_length:
-        lm_payload["context_length"] = int(context_length)
+    if provider in local_providers:
+        payload["repeat_penalty"] = repeat_penalty
+        if top_k and int(top_k) > 0:
+            payload["top_k"] = int(top_k)
+        if seed != -1:
+            payload["seed"] = seed
+        if context_length:
+            payload["context_length"] = int(context_length)
 
     try:
-        resp = requests.post(
-            LM_STUDIO_URL,
-            json=lm_payload,
-            timeout=600,
-            stream=True,
-        )
+        resp = requests.post(chat_url, json=payload, headers=extra_headers, timeout=600, stream=True)
         resp.raise_for_status()
     except requests.exceptions.ConnectionError:
-        return (
-            jsonify(
-                {
-                    "error": "Cannot connect to LM Studio. Make sure it is running on localhost:1234."
-                }
-            ),
-            503,
-        )
+        return jsonify({"error": f"Cannot connect to {provider_label}. Check the URL is reachable."}), 503
     except requests.exceptions.Timeout:
-        return (
-            jsonify(
-                {
-                    "error": "LM Studio timed out (10 min). Model may be too slow — try enabling GPU in LM Studio."
-                }
-            ),
-            504,
-        )
+        return jsonify({"error": f"{provider_label} timed out (10 min). Model may be too slow."}), 504
     except Exception as e:
-        return jsonify({"error": f"LM Studio error: {e}"}), 500
+        return jsonify({"error": f"{provider_label} error: {e}"}), 500
 
     raw = "["
     try:
@@ -620,6 +833,7 @@ Begin the JSON array now:"""
         {
             "success": True,
             "filename": out_name,
+            "docx_b64": _read_docx_b64(out_path),
             "changes_count": len(enriched),
             "changes": enriched,
         }
@@ -852,6 +1066,7 @@ Only include paragraphs that actually changed. If nothing changed, output: []"""
         {
             "success": True,
             "filename": out_name,
+            "docx_b64": _read_docx_b64(out_path),
             "changes_count": len(enriched),
             "changes": enriched,
         }
@@ -906,6 +1121,7 @@ def lm_call(
     seed=-1,
     context_length=None,
     prefill=None,
+    lm_url=None,
 ):
     """
     Single non-streaming call to LM Studio.
@@ -934,7 +1150,8 @@ def lm_call(
     if context_length:
         payload["context_length"] = int(context_length)
 
-    resp = requests.post(LM_STUDIO_URL, json=payload, timeout=300, stream=True)
+    _chat_url = f"{lm_url.rstrip('/')}/v1/chat/completions" if lm_url else LM_STUDIO_URL
+    resp = requests.post(_chat_url, json=payload, timeout=300, stream=True)
     resp.raise_for_status()
 
     raw = prefill or ""
@@ -1549,6 +1766,7 @@ def tailor_pipeline():
     api_key = data.get("api_key", "").strip()
     local_model = data.get("local_model", "").strip()
     gemini_model = data.get("gemini_model", "gemini-3.1-pro-preview").strip()
+    pipeline_lm_url = data.get("lm_url", "").strip()
 
     # Advanced config for LM Studio steps (optional)
     top_k = data.get("top_k")
@@ -1564,6 +1782,8 @@ def tailor_pipeline():
     if context_length:
         lm_kwargs["context_length"] = int(context_length)
     lm_kwargs["repeat_penalty"] = repeat_penalty
+    if pipeline_lm_url:
+        lm_kwargs["lm_url"] = pipeline_lm_url
 
     if not jd_text:
         return jsonify({"error": "Job description cannot be empty."}), 400
@@ -1746,6 +1966,7 @@ def tailor_pipeline():
         {
             "success": True,
             "filename": out_name,
+            "docx_b64": _read_docx_b64(out_path),
             "changes_count": len(enriched),
             "changes": enriched,
             "pipeline_log": pipeline_log,
@@ -1783,6 +2004,13 @@ def download(filename):
     return send_file(path, as_attachment=True)
 
 
+def _read_docx_b64(path):
+    """Read a .docx file and return it base64-encoded (for localStorage caching)."""
+    import base64
+    with open(path, "rb") as f:
+        return base64.b64encode(f.read()).decode("utf-8")
+
+
 def _convert_docx_to_pdf(docx_path, pdf_path):
     """Convert a .docx to .pdf. Returns None on success, error string on failure.
     Tries (in order): LibreOffice headless, docx2pdf.
@@ -1810,9 +2038,15 @@ def _convert_docx_to_pdf(docx_path, pdf_path):
 
     if soffice:
         try:
+            import os as _os, uuid
+            env = dict(_os.environ)
+            env.setdefault("HOME", "/tmp")  # writable HOME required in containers
+            profile_dir = f"/tmp/lo_profile_{uuid.uuid4().hex}"
             result = subprocess.run(
-                [soffice, "--headless", "--convert-to", "pdf", "--outdir", out_dir, docx_abs],
-                capture_output=True, text=True, timeout=60
+                [soffice, "--headless", "--norestore", "--nofirststartwizard",
+                 f"-env:UserInstallation=file://{profile_dir}",
+                 "--convert-to", "pdf", "--outdir", out_dir, docx_abs],
+                capture_output=True, text=True, timeout=60, env=env
             )
             # LibreOffice outputs <basename>.pdf, rename if needed
             lo_out = os.path.join(out_dir, os.path.splitext(os.path.basename(docx_abs))[0] + ".pdf")

@@ -1153,46 +1153,24 @@
       }
 
       /* ── PROVIDER TOGGLE ── */
-      .provider-toggle {
-        display: inline-flex;
-        background: var(--surface2);
-        border: 1px solid var(--border);
-        border-radius: 8px;
-        padding: 3px;
-        gap: 3px;
+      /* ── PROVIDER CHIPS ── */
+      .pchip-section { margin-bottom: 0.5rem; }
+      .pchip-group { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-bottom: 0.35rem; align-items: center; }
+      .pchip-group-label {
+        font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.1em;
+        color: var(--text-dim); width: 100%; margin-top: 0.1rem;
       }
-      .provider-btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.4rem;
-        font-family: var(--font-mono);
-        font-size: 0.72rem;
-        font-weight: 600;
-        padding: 0.4rem 0.9rem;
-        border-radius: 6px;
-        border: none;
-        background: transparent;
-        color: var(--text-muted);
-        cursor: pointer;
-        transition: all var(--transition);
-        letter-spacing: 0.02em;
+      .pchip-group-label:first-of-type { margin-top: 0; }
+      .pchip {
+        background: var(--surface2); border: 1px solid var(--border);
+        color: var(--text-muted); border-radius: var(--radius-sm);
+        padding: 0.28rem 0.65rem; font-size: 0.75rem; cursor: pointer;
+        transition: var(--transition); font-family: var(--font-sans); white-space: nowrap;
       }
-      .provider-btn:hover {
-        color: var(--text);
-        background: var(--surface3);
-      }
-      .provider-btn.active {
-        background: var(--accent);
-        color: #fff;
-        box-shadow: 0 0 12px var(--accent-glow);
-      }
-      .provider-btn.active.pipeline-active {
-        background: var(--pipeline);
-        box-shadow: 0 0 12px var(--pipeline-glow);
-      }
-      .prov-icon {
-        font-size: 0.85rem;
-      }
+      .pchip:hover { border-color: var(--border-bright); color: var(--text); }
+      .pchip.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 500; }
+      .pcfg-url-row { display: flex; gap: 0.5rem; align-items: center; }
+      .pcfg-url-row input { flex: 1; font-family: var(--font-mono); font-size: 0.78rem; }
 
       /* ── API KEY ROW ── */
       .apikey-row {
@@ -1547,7 +1525,7 @@
               History <span class="history-count" id="history-count" style="display:none"></span>
             </button>
           </div>
-          <div id="lm-pill" class="status-pill">
+          <div id="lm-pill" class="status-pill" style="display:none">
             <span class="dot"></span>
             <span id="lm-pill-text">checking...</span>
           </div>
@@ -1603,66 +1581,78 @@
           <!-- RIGHT COLUMN: config + action + output -->
           <div class="col-right">
 
-            <!-- Provider + Model -->
+            <!-- API Provider + Model -->
             <div class="panel-card">
-              <div class="panel-label">Model</div>
-              <div class="provider-toggle" id="provider-toggle">
-                <button class="provider-btn active" id="prov-lm" onclick="setProvider('lm')">
-                  <span class="prov-icon">🖥</span> LM Studio
-                </button>
-                <button class="provider-btn" id="prov-gemini" onclick="setProvider('gemini')">
-                  <span class="prov-icon">✦</span> Gemini
-                </button>
-                <!-- Pipeline: hidden from UI, backend preserved -->
-                <button class="provider-btn" id="prov-pipeline" onclick="setProvider('pipeline')" style="display:none">
-                  <span class="prov-icon">⚡</span> Pipeline
-                </button>
-              </div>
+              <div class="panel-label">API Provider</div>
 
-              <!-- LM Studio panel -->
-              <div id="panel-lm" style="margin-top:0.75rem">
-                <div class="label" style="margin-bottom:0.5rem">Model</div>
-                <div class="model-row">
-                  <div class="model-picker" id="model-picker">
-                    <button class="model-picker-btn" id="model-picker-btn" onclick="toggleModelDropdown()" type="button">
-                      <span class="model-picker-label" id="model-picker-label">Loading models...</span>
-                      <span class="model-picker-tags" id="model-picker-tags"></span>
-                    </button>
-                    <div class="model-dropdown" id="model-dropdown"></div>
-                  </div>
-                  <button class="btn btn-ghost" onclick="loadModels()">↻ Refresh</button>
-                </div>
-                <input type="hidden" id="model-select" value="" />
-              </div>
+              <!-- Provider dropdown -->
+              <select id="provider-select" onchange="setProvider(this.value)" style="width:100%;margin-bottom:0.25rem">
+                <optgroup label="Local">
+                  <option value="lmstudio">🖥 LM Studio</option>
+                  <option value="ollama">🦙 Ollama</option>
+                </optgroup>
+                <optgroup label="Cloud">
+                  <option value="openai">OpenAI</option>
+                  <option value="anthropic">Anthropic</option>
+                  <option value="gemini">✦ Gemini</option>
+                  <option value="groq">⚡ Groq</option>
+                  <option value="openrouter">OpenRouter</option>
+                  <option value="mistral">Mistral</option>
+                </optgroup>
+                <optgroup label="Advanced">
+                  <option value="custom">Custom</option>
+                </optgroup>
+              </select>
 
-              <!-- Gemini panel -->
-              <div id="panel-gemini" style="display:none;margin-top:0.75rem">
-                <div class="label" style="margin-bottom:0.5rem">API Key</div>
-                <div class="apikey-row">
-                  <div style="position:relative;flex:1">
-                    <input type="password" id="gemini-api-key" placeholder="Paste your Gemini API key (AIza...)" autocomplete="off" style="padding-right:2.5rem" />
-                    <button class="apikey-eye" id="apikey-eye" type="button" onclick="toggleApiKeyVisibility()" title="Show/hide key">👁</button>
+              <!-- Dynamic provider config -->
+              <div id="provider-cfg" style="margin-top:0.6rem">
+
+                <!-- URL (local + custom providers) -->
+                <div id="pcfg-url" style="display:none;margin-bottom:0.6rem">
+                  <div class="label" style="margin-bottom:0.4rem">Endpoint URL</div>
+                  <div class="pcfg-url-row">
+                    <input type="text" id="provider-url-input" placeholder="http://localhost:1234" autocomplete="off" oninput="saveProviderConfig()" />
+                    <button class="btn btn-ghost" onclick="loadProviderModels()" title="Refresh models">↻</button>
                   </div>
-                  <button class="btn btn-ghost" onclick="fetchGeminiModels()" id="gemini-fetch-btn" style="white-space:nowrap;font-size:0.68rem">Load Models</button>
-                  <a href="https://aistudio.google.com/app/apikey" target="_blank" class="btn btn-ghost" style="white-space:nowrap;font-size:0.68rem">Get key ↗</a>
                 </div>
-                <div class="apikey-hint" id="gemini-key-hint">Key is stored in your browser only — never sent anywhere except Google's API.</div>
-                <div id="gemini-model-wrap" style="display:none;margin-top:0.75rem">
-                  <div class="label" style="margin-bottom:0.5rem">Model</div>
-                  <div class="model-row">
-                    <div class="model-picker" id="gemini-model-picker">
-                      <button class="model-picker-btn" id="gemini-model-picker-btn" onclick="toggleGeminiDropdown()" type="button">
-                        <span class="model-picker-label" id="gemini-model-picker-label">Select a model...</span>
-                        <span class="model-picker-tags" id="gemini-model-picker-tags"></span>
-                      </button>
-                      <div class="model-dropdown" id="gemini-model-dropdown"></div>
+
+                <!-- API Key (cloud providers) -->
+                <div id="pcfg-apikey" style="display:none;margin-bottom:0.6rem">
+                  <div class="label" style="margin-bottom:0.4rem">API Key</div>
+                  <div class="apikey-row">
+                    <div style="position:relative;flex:1">
+                      <input type="password" id="provider-key-input" placeholder="Paste your API key..." autocomplete="off" style="padding-right:2.5rem" oninput="saveProviderConfig()" />
+                      <button class="apikey-eye" type="button" onclick="toggleProviderKeyVis()" title="Show/hide">👁</button>
                     </div>
+                    <button class="btn btn-ghost" id="load-models-btn" onclick="loadProviderModels()" style="white-space:nowrap;font-size:0.68rem">Load Models</button>
+                    <a id="get-key-link" href="#" target="_blank" class="btn btn-ghost" style="white-space:nowrap;font-size:0.68rem">Get key ↗</a>
                   </div>
-                  <input type="hidden" id="gemini-model-select" value="" />
+                  <div class="apikey-hint" id="provider-key-hint">Key stored in your browser only.</div>
+                </div>
+
+                <!-- Model picker -->
+                <div id="pcfg-model">
+                  <div class="label" style="margin-bottom:0.4rem">Model</div>
+                  <div class="model-row">
+                    <div class="model-picker" id="provider-model-picker">
+                      <button class="model-picker-btn" id="provider-model-picker-btn" onclick="toggleProviderModelDropdown()" type="button">
+                        <span class="model-picker-label" id="provider-model-picker-label">Select a model...</span>
+                        <span class="model-picker-tags" id="provider-model-picker-tags"></span>
+                      </button>
+                      <div class="model-dropdown" id="provider-model-dropdown"></div>
+                    </div>
+                    <button class="btn btn-ghost" onclick="loadProviderModels()" title="Refresh">↻</button>
+                  </div>
+                  <input type="hidden" id="provider-model-select" value="" />
+                </div>
+
+                <!-- Status pill (local providers) -->
+                <div id="pcfg-status" style="display:none;margin-top:0.5rem">
+                  <span class="status-pill" id="provider-pill"><span class="dot"></span><span id="provider-pill-text">checking...</span></span>
                 </div>
               </div>
 
-              <!-- Pipeline panel (hidden from UI, backend route intact) -->
+              <!-- Pipeline panel (hidden, backend intact) -->
               <div id="panel-pipeline" style="display:none;margin-top:0.75rem">
                 <div class="pipeline-config-toggle">
                   <button class="pcfg-btn active" id="pcfg-default" onclick="setPipelineConfig('default')">⚡ Default</button>
@@ -1670,11 +1660,9 @@
                 </div>
                 <div id="pipeline-default-panel">
                   <div class="pipeline-default-info">
-                    <div class="pipeline-default-row"><span class="label-col">Steps 1, 2, 4, 5</span><span class="val-col">Local Qwen3.5-9B (LM Studio)</span></div>
-                    <div class="pipeline-default-row"><span class="label-col">Step 3 — Rewriting</span><span class="val-col">gemini-3.1-flash-lite-preview-05-20</span></div>
-                    <div class="pipeline-default-row"><span class="label-col">Temperatures</span><span class="val-col">Local: 0.15 · Gemini: 0.4</span></div>
+                    <div class="pipeline-default-row"><span class="label-col">Steps 1, 2, 4, 5</span><span class="val-col">Local model (LM Studio)</span></div>
+                    <div class="pipeline-default-row"><span class="label-col">Step 3 — Rewriting</span><span class="val-col">Gemini flash-lite</span></div>
                   </div>
-                  <div class="info-note">LM Studio must be running with Qwen3.5-9B loaded. Gemini API key required below.</div>
                   <div class="label" style="margin-bottom:0.5rem;margin-top:1rem">Gemini API Key</div>
                   <div class="apikey-row">
                     <div style="position:relative;flex:1">
@@ -1708,7 +1696,7 @@
                   </div>
                   <div class="apikey-hint" id="pipeline-gemini-key-hint">Key stored in browser only.</div>
                   <div id="pipeline-gemini-model-wrap" style="display:none;margin-top:0.75rem">
-                    <div class="label" style="margin-bottom:0.5rem">Gemini Model <span style="font-weight:400;text-transform:none;letter-spacing:0">(Step 3 — Rewriting)</span></div>
+                    <div class="label" style="margin-bottom:0.5rem">Gemini Model <span style="font-weight:400;text-transform:none;letter-spacing:0">(Step 3)</span></div>
                     <div class="model-row">
                       <div class="model-picker" id="pipeline-gemini-picker">
                         <button class="model-picker-btn" id="pipeline-gemini-picker-btn" onclick="togglePipelineGeminiDropdown()" type="button">
@@ -1722,7 +1710,7 @@
                   </div>
                 </div>
               </div><!-- /panel-pipeline -->
-            </div><!-- /panel-card: model -->
+            </div><!-- /panel-card: provider -->
 
             <!-- Advanced Configuration -->
             <button class="advanced-toggle" id="adv-toggle" onclick="toggleAdvanced()">
@@ -1923,8 +1911,8 @@ WRITING RULES:
 - Skills lines: reorder within existing categories to front-load JD-critical terms. Never add skills not present.`;
 
             const hasDefault = {{ 'true' if has_default else 'false' }};
-            let resumeReady = hasDefault;
-            let currentProvider = 'lm'; // 'lm' | 'gemini' | 'pipeline'
+            let resumeReady = hasDefault || !!localStorage.getItem('rt_resume_b64');
+            let currentProvider = localStorage.getItem('rt_provider') || 'lmstudio';
             let pipelineConfigMode = 'default'; // 'default' | 'custom'
 
             const DEFAULT_LOCAL_MODEL_FOR_PIPELINE = 'qwen3.5-9b';
@@ -1932,41 +1920,24 @@ WRITING RULES:
 
             // ── BOOT ──────────────────────────────────────────────────────────────────
             document.addEventListener('DOMContentLoaded', () => {
-              loadModels();
-              if (hasDefault) { showResumeCard(); loadResumeInfo(); } else switchToUpload();
+              setProvider(currentProvider, true); // true = boot (skip save)
+              checkAndRestoreResume();
               setupDrop();
               initPrompt();
+              loadAdvancedConfig();
               loadHistoryCount();
-
-              const savedKey = localStorage.getItem('rt_gemini_key');
-              if (savedKey) {
-                document.getElementById('gemini-api-key').value = savedKey;
-                document.getElementById('pipeline-api-key').value = savedKey;
-                document.getElementById('pipeline-api-key-custom').value = savedKey;
-                fetch('/gemini-models', {
-                  method: 'POST', headers: {'Content-Type':'application/json'},
-                  body: JSON.stringify({api_key: savedKey})
-                }).then(r=>r.json()).then(d=>{
-                  if (d.models && d.models.length) {
-                    allGeminiModels = d.models;
-                    renderGeminiDropdown(allGeminiModels);
-                    const preferred = allGeminiModels.find(m=>m.id.includes('pro'))||allGeminiModels.find(m=>m.id.includes('flash')&&!m.id.includes('lite'))||allGeminiModels[0];
-                    if (preferred) selectGeminiModel(preferred);
-                    document.getElementById('gemini-model-wrap').style.display = '';
-                    showGeminiKeyHint(`✓ ${allGeminiModels.length} models loaded · key saved to browser`,'ok');
-                    document.getElementById('gemini-fetch-btn').textContent = '↻ Reload';
-                    allPipelineGeminiModels = d.models;
-                    renderPipelineGeminiDropdown(d.models);
-                    const pref2 = d.models.find(m=>m.id.includes('flash-lite'))||d.models[0];
-                    if (pref2) selectPipelineGeminiModel(pref2);
-                    document.getElementById('pipeline-gemini-model-wrap').style.display='';
-                  }
-                }).catch(()=>{});
-              }
-
-              document.getElementById('gemini-api-key').addEventListener('keydown', e => {
-                if (e.key === 'Enter') fetchGeminiModels();
+              // Wire advanced config inputs to auto-save
+              ['cfg-temp','cfg-top-p','cfg-max-tokens','cfg-top-k','cfg-rep-pen','cfg-ctx','cfg-seed'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.addEventListener('change', saveAdvancedConfig);
               });
+
+              // Restore pipeline Gemini key for pipeline panel
+              const savedGeminiKey = localStorage.getItem('rt_key_gemini') || localStorage.getItem('rt_gemini_key');
+              if (savedGeminiKey) {
+                document.getElementById('pipeline-api-key').value = savedGeminiKey;
+                document.getElementById('pipeline-api-key-custom').value = savedGeminiKey;
+              }
             });
 
             // ── VIEW SWITCHING ────────────────────────────────────────────────────────
@@ -1978,21 +1949,196 @@ WRITING RULES:
               if (v === 'history') renderHistory();
             }
 
-            // ── PROVIDER ──────────────────────────────────────────────────────────────
-            function setProvider(p) {
+            // ── PROVIDER SYSTEM ───────────────────────────────────────────────────────
+            const PROVIDER_META = {
+              lmstudio:   { label: 'LM Studio',  hasUrl: true,  hasKey: false, defaultUrl: 'http://localhost:1234', keyHint: '', getKeyUrl: '' },
+              ollama:     { label: 'Ollama',      hasUrl: true,  hasKey: false, defaultUrl: 'http://localhost:11434', keyHint: '', getKeyUrl: '' },
+              openai:     { label: 'OpenAI',      hasUrl: false, hasKey: true,  defaultUrl: '', keyHint: 'Key stored in your browser only.', getKeyUrl: 'https://platform.openai.com/api-keys' },
+              anthropic:  { label: 'Anthropic',   hasUrl: false, hasKey: true,  defaultUrl: '', keyHint: 'Key stored in your browser only.', getKeyUrl: 'https://console.anthropic.com/settings/keys' },
+              gemini:     { label: 'Gemini',      hasUrl: false, hasKey: true,  defaultUrl: '', keyHint: 'Key stored in your browser only.', getKeyUrl: 'https://aistudio.google.com/app/apikey' },
+              groq:       { label: 'Groq',        hasUrl: false, hasKey: true,  defaultUrl: '', keyHint: 'Key stored in your browser only.', getKeyUrl: 'https://console.groq.com/keys' },
+              openrouter: { label: 'OpenRouter',  hasUrl: false, hasKey: true,  defaultUrl: '', keyHint: 'Key stored in your browser only.', getKeyUrl: 'https://openrouter.ai/keys' },
+              mistral:    { label: 'Mistral',     hasUrl: false, hasKey: true,  defaultUrl: '', keyHint: 'Key stored in your browser only.', getKeyUrl: 'https://console.mistral.ai/api-keys' },
+              custom:     { label: 'Custom',      hasUrl: true,  hasKey: true,  defaultUrl: 'http://localhost:8080', keyHint: 'Optional — leave blank if not required.', getKeyUrl: '' },
+            };
+            const LOCAL_PROVIDERS = new Set(['lmstudio','ollama','custom']);
+            let selectedProviderModel = '';
+
+            function setProvider(p, isBoot) {
               currentProvider = p;
-              ['lm','gemini','pipeline'].forEach(id => {
-                const btn = document.getElementById('prov-'+id);
-                const panel = document.getElementById('panel-'+id);
-                btn.classList.toggle('active', id === p);
-                if (id === 'pipeline') btn.classList.toggle('pipeline-active', id === p);
-                if (panel) panel.style.display = id === p ? '' : 'none';
-              });
-              document.getElementById('lm-pill').style.display = p === 'gemini' ? 'none' : '';
+              if (!isBoot) {
+                localStorage.setItem('rt_provider', p);
+              }
+              // Sync dropdown selection
+              const sel = document.getElementById('provider-select');
+              if (sel) sel.value = p;
+              // Show/hide pipeline panel vs provider config
+              const isPipeline = p === 'pipeline';
+              document.getElementById('provider-cfg').style.display = isPipeline ? 'none' : '';
+              document.getElementById('panel-pipeline').style.display = isPipeline ? '' : 'none';
+              // Run button style
               const runBtn = document.getElementById('run-btn');
-              runBtn.textContent = p === 'pipeline' ? '⚡ Run Pipeline →' : 'Tailor Resume →';
-              runBtn.className = p === 'pipeline' ? 'btn btn-pipeline btn-run' : 'btn btn-primary btn-run';
+              runBtn.textContent = isPipeline ? '⚡ Run Pipeline →' : 'Tailor Resume →';
+              runBtn.className = isPipeline ? 'btn btn-pipeline btn-run' : 'btn btn-primary btn-run';
+              if (isPipeline) return;
+              const meta = PROVIDER_META[p] || {};
+              // URL field
+              const urlWrap = document.getElementById('pcfg-url');
+              urlWrap.style.display = meta.hasUrl ? '' : 'none';
+              if (meta.hasUrl) {
+                const saved = localStorage.getItem('rt_url_'+p) || meta.defaultUrl || '';
+                document.getElementById('provider-url-input').value = saved;
+                document.getElementById('provider-url-input').placeholder = meta.defaultUrl || 'http://...';
+              }
+              // API key field
+              const keyWrap = document.getElementById('pcfg-apikey');
+              keyWrap.style.display = meta.hasKey ? '' : 'none';
+              if (meta.hasKey) {
+                // Legacy fallback: rt_gemini_key → rt_key_gemini
+                const legacyMap = {gemini: 'rt_gemini_key'};
+                const saved = localStorage.getItem('rt_key_'+p) || (legacyMap[p] ? localStorage.getItem(legacyMap[p]) : '') || '';
+                document.getElementById('provider-key-input').value = saved;
+                document.getElementById('provider-key-input').placeholder = `Paste your ${meta.label} API key...`;
+                document.getElementById('provider-key-hint').textContent = meta.keyHint;
+                const getKeyLink = document.getElementById('get-key-link');
+                if (meta.getKeyUrl) {
+                  getKeyLink.href = meta.getKeyUrl;
+                  getKeyLink.style.display = '';
+                } else {
+                  getKeyLink.style.display = 'none';
+                }
+              }
+              // Status pill (local providers only)
+              document.getElementById('pcfg-status').style.display = LOCAL_PROVIDERS.has(p) ? '' : 'none';
+              // Restore previously selected model
+              const savedModel = localStorage.getItem('rt_model_'+p);
+              if (savedModel) {
+                document.getElementById('provider-model-select').value = savedModel;
+                document.getElementById('provider-model-picker-label').textContent = savedModel;
+                selectedProviderModel = savedModel;
+              } else {
+                document.getElementById('provider-model-picker-label').textContent = 'Select a model...';
+                selectedProviderModel = '';
+              }
+              document.getElementById('provider-model-dropdown').innerHTML = '';
+              // Auto-load models if we have enough config
+              if (LOCAL_PROVIDERS.has(p) || (meta.hasKey && document.getElementById('provider-key-input').value.trim())) {
+                loadProviderModels();
+              }
             }
+
+            function saveProviderConfig() {
+              const p = currentProvider;
+              const meta = PROVIDER_META[p] || {};
+              if (meta.hasUrl) localStorage.setItem('rt_url_'+p, document.getElementById('provider-url-input').value.trim());
+              if (meta.hasKey) {
+                const key = document.getElementById('provider-key-input').value.trim();
+                if (key) {
+                  localStorage.setItem('rt_key_'+p, key);
+                  if (p === 'gemini') localStorage.setItem('rt_gemini_key', key); // legacy compat
+                }
+              }
+            }
+
+            function toggleProviderKeyVis() {
+              const inp = document.getElementById('provider-key-input');
+              inp.type = inp.type === 'password' ? 'text' : 'password';
+            }
+
+            // ── UNIFIED MODEL LOADING ─────────────────────────────────────────────────
+            async function loadProviderModels() {
+              const p = currentProvider;
+              if (p === 'pipeline') return;
+              const meta = PROVIDER_META[p] || {};
+              saveProviderConfig();
+              const api_key = meta.hasKey ? document.getElementById('provider-key-input').value.trim() : '';
+              const lm_url  = meta.hasUrl ? document.getElementById('provider-url-input').value.trim() : '';
+              const label = document.getElementById('provider-model-picker-label');
+              label.textContent = 'Loading models...';
+              if (LOCAL_PROVIDERS.has(p)) {
+                const pill = document.getElementById('provider-pill');
+                const pillTxt = document.getElementById('provider-pill-text');
+                pill.className = 'status-pill';
+                pillTxt.textContent = 'Connecting...';
+              }
+              try {
+                const r = await fetch('/provider-models', {
+                  method: 'POST', headers: {'Content-Type':'application/json'},
+                  body: JSON.stringify({provider: p, api_key, lm_url})
+                });
+                const d = await r.json();
+                if (!r.ok || d.error) {
+                  label.textContent = d.error || 'Error loading models';
+                  if (LOCAL_PROVIDERS.has(p)) {
+                    document.getElementById('provider-pill').className = 'status-pill offline';
+                    document.getElementById('provider-pill-text').textContent = meta.label + ' offline';
+                  }
+                  if (meta.hasKey) document.getElementById('provider-key-hint').textContent = '✗ ' + (d.error||'Failed');
+                  return;
+                }
+                const models = d.models || [];
+                if (!models.length) {
+                  label.textContent = 'No models found';
+                  return;
+                }
+                _currentProviderModels = models;
+                renderProviderModelDropdown(models);
+                // Auto-select: restore saved or pick first
+                const saved = selectedProviderModel || localStorage.getItem('rt_model_'+p);
+                const toSelect = models.find(m=>m.id===saved) || models[0];
+                if (toSelect) selectProviderModel(toSelect);
+                if (LOCAL_PROVIDERS.has(p)) {
+                  document.getElementById('provider-pill').className = 'status-pill online';
+                  document.getElementById('provider-pill-text').textContent = meta.label + ' online';
+                  // Also populate pipeline local dropdown
+                  renderPipelineLocalDropdown(models);
+                  if (!selectedPipelineLocalModel && models.length) {
+                    const pref = models.find(m=>m.id.toLowerCase().includes('qwen'))||models[0];
+                    if (pref) selectPipelineLocalModel(pref);
+                  }
+                }
+                if (meta.hasKey) {
+                  document.getElementById('provider-key-hint').textContent = `✓ ${models.length} model${models.length!==1?'s':''} loaded · key saved`;
+                }
+              } catch(e) {
+                label.textContent = 'Connection error';
+                if (LOCAL_PROVIDERS.has(p)) {
+                  document.getElementById('provider-pill').className = 'status-pill offline';
+                  document.getElementById('provider-pill-text').textContent = meta.label + ' offline';
+                }
+              }
+            }
+
+            function renderProviderModelDropdown(models) {
+              const dd = document.getElementById('provider-model-dropdown');
+              dd.innerHTML = models.map((m, idx) => {
+                const ctx = m.input_token_limit ? (m.input_token_limit>=1000?(m.input_token_limit/1000).toFixed(0)+'k':m.input_token_limit)+'ctx' : m.context_length ? (m.context_length>=1000?(m.context_length/1000).toFixed(0)+'k':m.context_length)+'ctx' : '';
+                return `<div class="model-opt${m.id===selectedProviderModel?' selected':''}" onclick='selectProviderModel(${JSON.stringify(m)})'>${esc(m.id)}${ctx?`<span class="mtag mtag-quant">${ctx}</span>`:''}</div>`;
+              }).join('');
+            }
+
+            function selectProviderModel(m) {
+              selectedProviderModel = m.id;
+              document.getElementById('provider-model-select').value = m.id;
+              document.getElementById('provider-model-picker-label').textContent = m.id;
+              const ctx = m.input_token_limit ? (m.input_token_limit>=1000?(m.input_token_limit/1000).toFixed(0)+'k':m.input_token_limit)+'ctx' : m.context_length ? (m.context_length>=1000?(m.context_length/1000).toFixed(0)+'k':m.context_length)+'ctx' : '';
+              document.getElementById('provider-model-picker-tags').innerHTML = ctx ? `<span class="mtag mtag-quant">${ctx}</span>` : '';
+              localStorage.setItem('rt_model_'+currentProvider, m.id);
+              renderProviderModelDropdown(_currentProviderModels);
+              document.getElementById('provider-model-dropdown').classList.remove('open');
+              document.getElementById('provider-model-picker-btn').classList.remove('open');
+            }
+
+            function toggleProviderModelDropdown() {
+              document.getElementById('provider-model-dropdown').classList.toggle('open');
+              document.getElementById('provider-model-picker-btn').classList.toggle('open');
+            }
+
+            let _currentProviderModels = [];
+            // Shims for backward-compat code that references old LM Studio model vars
+            let allModels = [];
+            let selectedModel = '';
+            function loadModels() { if (currentProvider === 'lmstudio' || currentProvider === 'ollama') loadProviderModels(); }
             function setPipelineConfig(mode) {
               pipelineConfigMode = mode;
               document.getElementById('pcfg-default').classList.toggle('active', mode==='default');
@@ -2044,6 +2190,22 @@ WRITING RULES:
               document.getElementById('cfg-rep-pen').value=1.1;
               document.getElementById('cfg-ctx').value='';
               document.getElementById('cfg-seed').value=-1;
+              saveAdvancedConfig();
+            }
+            function saveAdvancedConfig() {
+              localStorage.setItem('rt_advanced_cfg', JSON.stringify(getAdvancedConfig()));
+            }
+            function loadAdvancedConfig() {
+              const saved = JSON.parse(localStorage.getItem('rt_advanced_cfg') || 'null');
+              if (!saved) return;
+              if (saved.temperature !== undefined) { document.getElementById('cfg-temp').value=saved.temperature; document.getElementById('cfg-temp-val').textContent=parseFloat(saved.temperature).toFixed(2); }
+              if (saved.top_p !== undefined) { document.getElementById('cfg-top-p').value=saved.top_p; document.getElementById('cfg-top-p-val').textContent=parseFloat(saved.top_p).toFixed(2); }
+              if (saved.max_tokens !== undefined) document.getElementById('cfg-max-tokens').value=saved.max_tokens;
+              if (saved.top_k !== undefined) document.getElementById('cfg-top-k').value=saved.top_k||0;
+              if (saved.repeat_penalty !== undefined) document.getElementById('cfg-rep-pen').value=saved.repeat_penalty;
+              if (saved.seed !== undefined) document.getElementById('cfg-seed').value=saved.seed;
+              // context_length is stored as the numeric value; match the select option
+              if (saved.context_length !== undefined) document.getElementById('cfg-ctx').value=saved.context_length||'';
             }
             function getAdvancedConfig() {
               return {
@@ -2057,113 +2219,7 @@ WRITING RULES:
               };
             }
 
-            // ── LM STUDIO MODELS ──────────────────────────────────────────────────────
-            let allModels = [];
-            let selectedModel = '';
-
-            async function loadModels() {
-              const pill = document.getElementById('lm-pill');
-              const txt = document.getElementById('lm-pill-text');
-              try {
-                const d = await fetch('/models').then(r=>r.json());
-                if (d.online && d.models.length) {
-                  allModels = d.models;
-                  pill.className='status-pill online';
-                  txt.textContent='LM Studio online';
-                  if (!selectedModel && allModels.length) selectModel(allModels[0]);
-                  else renderModelDropdown(allModels);
-                  renderPipelineLocalDropdown(allModels);
-                  if (!selectedPipelineLocalModel && allModels.length) {
-                    const pref = allModels.find(m=>m.id.toLowerCase().includes(DEFAULT_LOCAL_MODEL_FOR_PIPELINE))||allModels[0];
-                    if (pref) selectPipelineLocalModel(pref);
-                  }
-                } else {
-                  pill.className='status-pill offline';
-                  txt.textContent='LM Studio offline';
-                  document.getElementById('model-picker-label').textContent='No models found';
-                }
-              } catch(e) {
-                pill.className='status-pill offline';
-                txt.textContent='LM Studio offline';
-                document.getElementById('model-picker-label').textContent='Cannot connect';
-              }
-            }
-            function renderModelDropdown(models) {
-              const dd = document.getElementById('model-dropdown');
-              dd.innerHTML = models.map((m,idx) => {
-                const ctx = m.context_length ? (m.context_length>=1000?(m.context_length/1000).toFixed(0)+'k':m.context_length)+'ctx' : '';
-                return `<div class="model-opt${m.id===selectedModel?' selected':''}" data-idx="${idx}" onclick="selectModel(allModels[${idx}])">${esc(m.id)}${ctx?`<span class="mtag mtag-quant">${ctx}</span>`:''}</div>`;
-              }).join('');
-            }
-            function selectModel(m) {
-              selectedModel = m.id;
-              document.getElementById('model-select').value = m.id;
-              document.getElementById('model-picker-label').textContent = m.id;
-              const ctx = m.context_length ? (m.context_length>=1000?(m.context_length/1000).toFixed(0)+'k':m.context_length)+'ctx' : '';
-              document.getElementById('model-picker-tags').innerHTML = ctx?`<span class="mtag mtag-quant">${ctx}</span>`:'';
-              renderModelDropdown(allModels);
-              document.getElementById('model-dropdown').classList.remove('open');
-              document.getElementById('model-picker-btn').classList.remove('open');
-            }
-            function toggleModelDropdown() {
-              document.getElementById('model-dropdown').classList.toggle('open');
-              document.getElementById('model-picker-btn').classList.toggle('open');
-            }
-
-            // ── GEMINI MODELS ─────────────────────────────────────────────────────────
-            let allGeminiModels = [];
-            let selectedGeminiModel = '';
-
-            function showGeminiKeyHint(msg, type='') {
-              const el = document.getElementById('gemini-key-hint');
-              el.textContent = msg;
-              el.className = 'apikey-hint' + (type?' hint-'+type:'');
-            }
-            async function fetchGeminiModels() {
-              const key = document.getElementById('gemini-api-key').value.trim();
-              if (!key) return showGeminiKeyHint('Paste your API key first.','error');
-              showGeminiKeyHint('Loading models…');
-              localStorage.setItem('rt_gemini_key', key);
-              document.getElementById('pipeline-api-key').value = key;
-              document.getElementById('pipeline-api-key-custom').value = key;
-              try {
-                const r = await fetch('/gemini-models',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({api_key:key})});
-                const d = await r.json();
-                if (!r.ok||d.error) return showGeminiKeyHint(d.error||'Failed to fetch models.','error');
-                allGeminiModels = d.models;
-                renderGeminiDropdown(allGeminiModels);
-                const preferred = allGeminiModels.find(m=>m.id.includes('pro'))||allGeminiModels.find(m=>m.id.includes('flash')&&!m.id.includes('lite'))||allGeminiModels[0];
-                if (preferred) selectGeminiModel(preferred);
-                document.getElementById('gemini-model-wrap').style.display = '';
-                showGeminiKeyHint(`✓ ${allGeminiModels.length} models loaded · key saved to browser`,'ok');
-                document.getElementById('gemini-fetch-btn').textContent = '↻ Reload';
-              } catch(e) { showGeminiKeyHint('Network error: '+e.message,'error'); }
-            }
-            function renderGeminiDropdown(models) {
-              const dd = document.getElementById('gemini-model-dropdown');
-              dd.innerHTML = models.map((m,idx) => {
-                const ctx = m.input_token_limit ? (m.input_token_limit>=1000?(m.input_token_limit/1000).toFixed(0)+'k':m.input_token_limit)+'ctx':'';
-                return `<div class="model-opt${m.id===selectedGeminiModel?' selected':''}" data-idx="${idx}" onclick="selectGeminiModel(allGeminiModels[${idx}])">${esc(m.id)}${ctx?`<span class="mtag mtag-quant">${ctx}</span>`:''}</div>`;
-              }).join('');
-            }
-            function selectGeminiModel(m) {
-              selectedGeminiModel = m.id;
-              document.getElementById('gemini-model-select').value = m.id;
-              document.getElementById('gemini-model-picker-label').textContent = m.id;
-              const ctx = m.input_token_limit ? (m.input_token_limit>=1000?(m.input_token_limit/1000).toFixed(0)+'k':m.input_token_limit)+'ctx':'';
-              document.getElementById('gemini-model-picker-tags').innerHTML = ctx?`<span class="mtag mtag-quant">${ctx}</span>`:'';
-              renderGeminiDropdown(allGeminiModels);
-              document.getElementById('gemini-model-dropdown').classList.remove('open');
-              document.getElementById('gemini-model-picker-btn').classList.remove('open');
-            }
-            function toggleGeminiDropdown() {
-              document.getElementById('gemini-model-dropdown').classList.toggle('open');
-              document.getElementById('gemini-model-picker-btn').classList.toggle('open');
-            }
-            function toggleApiKeyVisibility() {
-              const inp = document.getElementById('gemini-api-key');
-              inp.type = inp.type === 'password' ? 'text' : 'password';
-            }
+            // (old LM Studio / Gemini model code replaced by unified provider system above)
 
             // ── PIPELINE MODELS ───────────────────────────────────────────────────────
             let allPipelineGeminiModels = [];
@@ -2232,19 +2288,50 @@ WRITING RULES:
               document.getElementById('drop-zone').style.display='';
               resumeReady=false;
             }
-            function showResumeCard() {
+            function showResumeCard(meta) {
               document.getElementById('resume-card').style.display='';
               document.getElementById('drop-zone').style.display='none';
+              if (meta) document.getElementById('resume-meta').textContent = meta;
               resumeReady=true;
             }
-            async function loadResumeInfo() {
+            async function checkAndRestoreResume() {
+              // If localStorage has a cached resume, show the card immediately to avoid a flash
+              if (localStorage.getItem('rt_resume_b64')) showResumeCard('Checking…');
               try {
                 const d = await fetch('/resume-info').then(r=>r.json());
-                if (d.paragraphs) {
-                  document.getElementById('resume-meta').textContent = `${d.paragraphs} paragraphs · ${d.words} words`;
-                  showResumeCard();
+                if (d.exists) {
+                  showResumeCard(`${d.paragraphs} paragraphs · ${d.words} words`);
+                } else {
+                  const b64 = localStorage.getItem('rt_resume_b64');
+                  if (b64) {
+                    await autoRestoreResume(b64, localStorage.getItem('rt_resume_name') || 'resume.docx');
+                  } else {
+                    switchToUpload();
+                  }
                 }
-              } catch(e) {}
+              } catch(e) {
+                const b64 = localStorage.getItem('rt_resume_b64');
+                if (b64) {
+                  await autoRestoreResume(b64, localStorage.getItem('rt_resume_name') || 'resume.docx');
+                } else {
+                  switchToUpload();
+                }
+              }
+            }
+            async function autoRestoreResume(b64, name) {
+              try {
+                const bytes = atob(b64);
+                const arr = new Uint8Array(bytes.length);
+                for (let i=0; i<bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+                const file = new File([arr], name, {type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+                const fd = new FormData(); fd.append('file', file);
+                const r = await fetch('/upload-resume',{method:'POST',body:fd});
+                const d = await r.json();
+                if (d.success) {
+                  showResumeCard(`${d.paragraphs} paragraphs · ${d.words} words`);
+                  document.getElementById('resume-meta').title = 'Auto-restored from browser cache';
+                } else { switchToUpload(); }
+              } catch(e) { switchToUpload(); }
             }
             async function handleFile(file) {
               if (!file) return;
@@ -2253,8 +2340,14 @@ WRITING RULES:
                 const r = await fetch('/upload-resume',{method:'POST',body:fd});
                 const d = await r.json();
                 if (d.success) {
-                  document.getElementById('resume-meta').textContent = `${d.paragraphs} paragraphs · ${d.words} words`;
-                  showResumeCard();
+                  showResumeCard(`${d.paragraphs} paragraphs · ${d.words} words`);
+                  // Cache to localStorage so it survives server restarts
+                  const reader = new FileReader();
+                  reader.onload = e => {
+                    localStorage.setItem('rt_resume_b64', e.target.result.split(',')[1]);
+                    localStorage.setItem('rt_resume_name', file.name);
+                  };
+                  reader.readAsDataURL(file);
                 } else { showError(d.error||'Upload failed.'); }
               } catch(e) { showError('Upload error: '+e.message); }
             }
@@ -2269,7 +2362,10 @@ WRITING RULES:
               const p = document.getElementById('resume-preview');
               if (p.style.display==='none'||!p.style.display) {
                 fetch('/resume-info').then(r=>r.json()).then(d=>{
-                  p.innerHTML = (d.paragraphs_text||[]).map(t=>`<div class="preview-line">${esc(t)}</div>`).join('');
+                  const lines = d.paragraphs_text || [];
+                  p.innerHTML = lines.length
+                    ? lines.map(t=>`<div class="preview-line">${esc(t)}</div>`).join('')
+                    : '<div class="preview-line" style="color:var(--text-muted)">No content to preview.</div>';
                   p.style.display='';
                 });
               } else { p.style.display='none'; }
@@ -2282,71 +2378,58 @@ WRITING RULES:
               if (!resumeReady) return showError('Upload your resume first.');
               if (!jd) return showError('Job description is empty.');
               if (currentProvider === 'pipeline') await runPipeline(jd);
-              else if (currentProvider === 'gemini') await runGemini(jd);
-              else await runLmStudio(jd);
+              else await runUnified(jd);
             }
 
-            async function runLmStudio(jd) {
+            async function runUnified(jd) {
+              const p = currentProvider;
+              const meta = PROVIDER_META[p] || {};
               const sysPrompt = (localStorage.getItem('rt_prompt_v2')||DEFAULT_PROMPT).trim();
-              const model = document.getElementById('model-select').value;
+              const model = selectedProviderModel;
               const jobTitle = document.getElementById('job-title').value.trim();
-              if (!model) return showError('No model selected — is LM Studio running?');
+              const api_key = meta.hasKey ? document.getElementById('provider-key-input').value.trim() : '';
+              const lm_url  = meta.hasUrl ? document.getElementById('provider-url-input').value.trim() : '';
+              if (!model) return showError(`Select a model first. ${meta.hasKey ? 'Enter your API key and click "Load Models".' : 'Click ↻ to refresh.'}`);
+              if (meta.hasKey && !api_key) return showError(`Enter your ${meta.label} API key above.`);
               const adv = getAdvancedConfig();
-              setBusy(true,'lm');
+              setBusy(true, p);
               try {
-                const r = await fetch('/tailor',{
+                const r = await fetch('/tailor', {
                   method:'POST', headers:{'Content-Type':'application/json'},
-                  body: JSON.stringify({system_prompt:sysPrompt,jd_text:jd,model,job_title:jobTitle,...adv})
+                  body: JSON.stringify({provider:p, model, api_key, lm_url, system_prompt:sysPrompt, jd_text:jd, job_title:jobTitle, ...adv})
                 });
                 const d = await r.json();
                 if (!r.ok||d.error) showError(d.error||'Unexpected error.',d.hint||'',d.raw_preview||'');
-                else { renderResults(d,false); saveToHistory(d,'lm',model,jobTitle,jd); }
-              } catch(e) { showError('Network error: '+e.message); }
-              finally { setBusy(false); }
-            }
-
-            async function runGemini(jd) {
-              const sysPrompt = (localStorage.getItem('rt_prompt_v2')||DEFAULT_PROMPT).trim();
-              const apiKey = document.getElementById('gemini-api-key').value.trim();
-              const geminiModel = selectedGeminiModel;
-              const jobTitle = document.getElementById('job-title').value.trim();
-              if (!apiKey) return showError('Enter your Gemini API key above.');
-              if (!geminiModel) return showError('Click "Load Models" to fetch available Gemini models first.');
-              const adv = getAdvancedConfig();
-              setBusy(true,'gemini');
-              try {
-                const r = await fetch('/tailor-gemini',{
-                  method:'POST', headers:{'Content-Type':'application/json'},
-                  body: JSON.stringify({api_key:apiKey,model:geminiModel,system_prompt:sysPrompt,jd_text:jd,job_title:jobTitle,temperature:adv.temperature,max_tokens:adv.max_tokens,top_p:adv.top_p})
-                });
-                const d = await r.json();
-                if (!r.ok||d.error) showError(d.error||'Unexpected error.',d.hint||'',d.raw_preview||'');
-                else { renderResults(d,false); saveToHistory(d,'gemini',geminiModel,jobTitle,jd); }
+                else { renderResults(d,false); saveToHistory(d, p, model, jobTitle, jd); }
               } catch(e) { showError('Network error: '+e.message); }
               finally { setBusy(false); }
             }
 
             async function runPipeline(jd) {
-              let localModel, apiKey, geminiModel;
+              let localModel, apiKey, geminiModel, lm_url;
               if (pipelineConfigMode === 'default') {
-                localModel = selectedModel || (allModels.length ? allModels[0].id : '');
+                // Use the currently loaded local model from provider panel (lmstudio/ollama)
+                localModel = selectedProviderModel || selectedPipelineLocalModel;
                 apiKey = document.getElementById('pipeline-api-key').value.trim();
                 geminiModel = DEFAULT_GEMINI_MODEL_FOR_PIPELINE;
+                lm_url = localStorage.getItem('rt_url_lmstudio') || '';
               } else {
                 localModel = selectedPipelineLocalModel;
                 apiKey = document.getElementById('pipeline-api-key-custom').value.trim();
                 geminiModel = selectedPipelineGeminiModel || DEFAULT_GEMINI_MODEL_FOR_PIPELINE;
+                lm_url = localStorage.getItem('rt_url_lmstudio') || '';
               }
-              if (!localModel) return showError('No local model available — is LM Studio running?');
+              if (!localModel) return showError('No local model available — load LM Studio/Ollama models first.');
               if (!apiKey) return showError('Gemini API key is required for the pipeline. Enter it above.');
-              localStorage.setItem('rt_gemini_key', apiKey);
+              localStorage.setItem('rt_key_gemini', apiKey);
+              localStorage.setItem('rt_gemini_key', apiKey); // legacy compat
               const adv = getAdvancedConfig();
               setBusy(true,'pipeline');
               startPipelineStepAnimation();
               try {
                 const r = await fetch('/tailor-pipeline',{
                   method:'POST', headers:{'Content-Type':'application/json'},
-                  body: JSON.stringify({jd_text:jd,api_key:apiKey,local_model:localModel,gemini_model:geminiModel,top_k:adv.top_k,repeat_penalty:adv.repeat_penalty,seed:adv.seed,context_length:adv.context_length})
+                  body: JSON.stringify({jd_text:jd,api_key:apiKey,local_model:localModel,gemini_model:geminiModel,lm_url,top_k:adv.top_k,repeat_penalty:adv.repeat_penalty,seed:adv.seed,context_length:adv.context_length})
                 });
                 const d = await r.json();
                 stopPipelineStepAnimation(d.pipeline_log);
@@ -2371,9 +2454,8 @@ WRITING RULES:
                 } else {
                   pipelineProgress.style.display = 'none';
                   simpleProgress.style.display = '';
-                  document.getElementById('progress-label-text').textContent =
-                    provider==='gemini' ? 'Sending to Gemini — this may take a minute...' :
-                    'Sending to LM Studio — this may take a minute or two...';
+                  const pLabel = (PROVIDER_META[provider]||{}).label || provider;
+                  document.getElementById('progress-label-text').textContent = `Sending to ${pLabel} — this may take a moment...`;
                   btn.textContent = '⟳ Tailoring...';
                 }
               } else {
@@ -2458,11 +2540,53 @@ WRITING RULES:
                 list.innerHTML = '<p style="font-size:0.82rem;color:var(--text-muted);padding:1rem 0">No changes needed — resume already matches the JD well.</p>';
               }
               document.getElementById('dl-filename').textContent = d.filename||'resume_tailored.docx';
-              document.getElementById('dl-link').href = `/download/${d.filename}`;
+              // Use downloadFile() so it falls back to localStorage cache if server restarts
+              const dlLink = document.getElementById('dl-link');
+              dlLink.href = '#';
+              dlLink.removeAttribute('download');
+              dlLink.onclick = (e) => { e.preventDefault(); downloadFile(d.filename); };
               document.getElementById('dl-pdf-link').href = `/download-pdf/${d.filename}`;
+              // Cache output file for offline/restart resilience
+              if (d.docx_b64) cacheOutput(d.filename, d.docx_b64);
               wrap.className = 'results-wrap show';
             }
             function hideResults() { document.getElementById('results-wrap').className='results-wrap'; }
+
+            // ── OUTPUT CACHE ──────────────────────────────────────────────────────────
+            const OUTPUTS_KEY = 'rt_outputs';
+
+            function cacheOutput(filename, b64) {
+              const outputs = JSON.parse(localStorage.getItem(OUTPUTS_KEY) || '[]');
+              outputs.unshift({ name: filename, b64, ts: Date.now() });
+              localStorage.setItem(OUTPUTS_KEY, JSON.stringify(outputs.slice(0, 5)));
+            }
+
+            function triggerDownload(blob, filename) {
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url; a.download = filename;
+              document.body.appendChild(a); a.click();
+              document.body.removeChild(a);
+              setTimeout(() => URL.revokeObjectURL(url), 5000);
+            }
+
+            async function downloadFile(filename) {
+              try {
+                const r = await fetch(`/download/${filename}`);
+                if (r.ok) { triggerDownload(await r.blob(), filename); return; }
+              } catch(e) {}
+              // Server file gone — try localStorage cache
+              const outputs = JSON.parse(localStorage.getItem(OUTPUTS_KEY) || '[]');
+              const cached = outputs.find(o => o.name === filename);
+              if (cached) {
+                const bytes = atob(cached.b64);
+                const arr = new Uint8Array(bytes.length);
+                for (let i=0; i<bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+                triggerDownload(new Blob([arr], {type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'}), filename);
+              } else {
+                showError('File not found on server and not in local cache. Re-run to regenerate.');
+              }
+            }
 
             // ── HISTORY ───────────────────────────────────────────────────────────────
             const HISTORY_KEY = 'rt_history';
@@ -2521,7 +2645,7 @@ WRITING RULES:
                     <div class="history-item-jd">${esc(item.jd_preview)}${item.jd_preview.length>=120?'…':''}</div>
                   </div>
                   <div class="history-item-actions">
-                    ${item.filename ? `<a class="btn btn-ghost" href="/download/${esc(item.filename)}" download title="Download">↓ .docx</a>` : ''}
+                    ${item.filename ? `<button class="btn btn-ghost" onclick="downloadFile('${item.filename}')" title="Download">↓ .docx</button>` : ''}
                     <button class="btn btn-ghost" onclick="deleteHistoryItem(${item.id})" title="Remove">✕</button>
                   </div>
                 </div>
