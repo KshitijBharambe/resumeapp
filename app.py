@@ -697,14 +697,59 @@ def provider_models():
         return jsonify({"error": str(e)}), 500
 
 
+def run_with_keepalive(func, *args, **kwargs):
+    import queue
+    import threading
+    from flask import current_app, request, Response, stream_with_context
+    import json
+
+    app = current_app._get_current_object()
+    environ = dict(request.environ)
+    import io
+    environ["wsgi.input"] = io.BytesIO(b"")
+    q = queue.Queue()
+
+    def worker():
+        with app.request_context(environ):
+            try:
+                res = func(*args, **kwargs)
+                if isinstance(res, tuple):
+                    resp = res[0]
+                else:
+                    resp = res
+                body = resp.get_data(as_text=True) if hasattr(resp, "get_data") else json.dumps(resp)
+                q.put({"type": "done", "body": body})
+            except Exception as e:
+                q.put({"type": "error", "body": json.dumps({"error": f"Internal Error: {str(e)}"})})
+
+    t = threading.Thread(target=worker)
+    t.start()
+
+    def generate():
+        yield " "  # Immediate whitespace to start transfer and bypass 100s TTFB
+        while True:
+            try:
+                msg = q.get(timeout=15)
+                yield msg["body"]
+                break
+            except queue.Empty:
+                yield " "
+
+    return Response(stream_with_context(generate()), mimetype='application/json')
+
+
+
 @app.route("/tailor", methods=["POST"])
 def tailor():
     data = request.json or {}
+    return run_with_keepalive(_tailor_impl, data)
+
+def _tailor_impl(data):
     provider = data.get("provider", "lmstudio").lower().strip()
 
     # Route to specialized handlers
     if provider == "gemini":
-        return tailor_gemini()
+        return _tailor_gemini_impl(data)
     if provider == "anthropic":
         return _tailor_anthropic(data)
 
@@ -929,6 +974,10 @@ def gemini_models():
 
 @app.route("/tailor-gemini", methods=["POST"])
 def tailor_gemini():
+    data = request.json or {}
+    return run_with_keepalive(_tailor_gemini_impl, data)
+
+def _tailor_gemini_impl(data):
     try:
         from google import genai
         from google.genai import types as genai_types
@@ -942,7 +991,6 @@ def tailor_gemini():
             500,
         )
 
-    data = request.json or {}
     api_key = data.get("api_key", "").strip()
     model_name = data.get("model", "gemini-3.1-pro-preview").strip()
     system_prompt = data.get("system_prompt", "").strip()
@@ -1763,6 +1811,10 @@ def run_step5(validated_bullets, resume_paras):
 
 @app.route("/tailor-pipeline", methods=["POST"])
 def tailor_pipeline():
+    data = request.json or {}
+    return run_with_keepalive(_tailor_pipeline_impl, data)
+
+def _tailor_pipeline_impl(data):
     """
     5-step pipeline:
     1. JD Analysis          → LM Studio (Qwen)
@@ -1783,7 +1835,6 @@ def tailor_pipeline():
             500,
         )
 
-    data = request.json or {}
     jd_text = data.get("jd_text", "").strip()
     api_key = data.get("api_key", "").strip()
     local_model = data.get("local_model", "").strip()
