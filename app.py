@@ -24,10 +24,10 @@ def _get_chat_url_and_headers(provider, lm_url, api_key):
     local_providers = {"lmstudio", "ollama", "custom"}
     if provider in local_providers:
         base = (lm_url or PROVIDER_BASE_URLS.get(provider, "http://localhost:1234")).rstrip("/")
-        headers = {}
     else:
         base = PROVIDER_BASE_URLS.get(provider, "").rstrip("/")
-        headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
+    
+    headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
     if provider == "openrouter":
         headers["HTTP-Referer"] = "https://resume-tailor.onrender.com"
     return f"{base}/v1/chat/completions", headers
@@ -599,6 +599,9 @@ def provider_models():
     api_key = data.get("api_key", "").strip()
     lm_url = data.get("lm_url", "").strip()
 
+    if provider == "lmstudio" and not api_key:
+        api_key = os.environ.get("LM_API_TOKEN", "")
+
     # --- Anthropic: static list ---
     if provider == "anthropic":
         return jsonify({"models": ANTHROPIC_MODELS, "static": True})
@@ -628,10 +631,11 @@ def provider_models():
     # --- Local providers (LM Studio, Ollama, Custom) ---
     if provider in ("lmstudio", "ollama", "custom"):
         base = (lm_url or PROVIDER_BASE_URLS.get(provider, "http://localhost:1234")).rstrip("/")
+        headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
         # Ollama: try /api/tags first
         if provider == "ollama":
             try:
-                r = requests.get(f"{base}/api/tags", timeout=4)
+                r = requests.get(f"{base}/api/tags", headers=headers, timeout=4)
                 r.raise_for_status()
                 raw = r.json().get("models", [])
                 models = [{"id": m["name"]} for m in raw]
@@ -639,7 +643,7 @@ def provider_models():
             except Exception:
                 pass  # fall through to OpenAI-compat endpoint
         try:
-            r = requests.get(f"{base}/v1/models", timeout=4)
+            r = requests.get(f"{base}/v1/models", headers=headers, timeout=4)
             r.raise_for_status()
             raw = r.json().get("data", [])
             models = []
@@ -701,6 +705,9 @@ def tailor():
     job_title = data.get("job_title", "").strip()
     api_key = data.get("api_key", "").strip()
     lm_url = data.get("lm_url", "").strip()
+
+    if provider == "lmstudio" and not api_key:
+        api_key = os.environ.get("LM_API_TOKEN", "")
 
     # Advanced config (all optional)
     temperature = float(data.get("temperature", 0.3))
