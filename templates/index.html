@@ -1951,7 +1951,7 @@ WRITING RULES:
 
             // ── PROVIDER SYSTEM ───────────────────────────────────────────────────────
             const PROVIDER_META = {
-              lmstudio:   { label: 'LM Studio',  hasUrl: true,  hasKey: true, defaultUrl: 'http://localhost:1234', keyHint: 'Optional — leave blank if not required.', getKeyUrl: '' },
+              lmstudio:   { label: 'LM Studio',  hasUrl: true,  hasKey: false, defaultUrl: 'http://localhost:1234', keyHint: '', getKeyUrl: '' },
               ollama:     { label: 'Ollama',      hasUrl: true,  hasKey: false, defaultUrl: 'http://localhost:11434', keyHint: '', getKeyUrl: '' },
               openai:     { label: 'OpenAI',      hasUrl: false, hasKey: true,  defaultUrl: '', keyHint: 'Key stored in your browser only.', getKeyUrl: 'https://platform.openai.com/api-keys' },
               anthropic:  { label: 'Anthropic',   hasUrl: false, hasKey: true,  defaultUrl: '', keyHint: 'Key stored in your browser only.', getKeyUrl: 'https://console.anthropic.com/settings/keys' },
@@ -2390,7 +2390,7 @@ WRITING RULES:
               const api_key = meta.hasKey ? document.getElementById('provider-key-input').value.trim() : '';
               const lm_url  = meta.hasUrl ? document.getElementById('provider-url-input').value.trim() : '';
               if (!model) return showError(`Select a model first. ${meta.hasKey ? 'Enter your API key and click "Load Models".' : 'Click ↻ to refresh.'}`);
-              if (meta.hasKey && !api_key && !['lmstudio', 'custom'].includes(p)) return showError(`Enter your ${meta.label} API key above.`);
+              if (meta.hasKey && !api_key && !['custom'].includes(p)) return showError(`Enter your ${meta.label} API key above.`);
               const adv = getAdvancedConfig();
               setBusy(true, p);
               try {
