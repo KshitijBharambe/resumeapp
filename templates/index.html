@@ -1939,6 +1939,7 @@ WRITING RULES:
 
             const DEFAULT_LOCAL_MODEL_FOR_PIPELINE = 'qwen3.5-9b';
             const DEFAULT_GEMINI_MODEL_FOR_PIPELINE = 'gemini-2.0-flash-lite';
+            let currentAbortController = null;
 
             // ── BOOT ──────────────────────────────────────────────────────────────────
             document.addEventListener('DOMContentLoaded', () => {
@@ -1948,10 +1949,13 @@ WRITING RULES:
               initPrompt();
               loadAdvancedConfig();
               loadHistoryCount();
-              // Wire advanced config inputs to auto-save
+              // Wire advanced config inputs to auto-save (remove old listeners first to prevent accumulation)
               ['cfg-temp','cfg-top-p','cfg-max-tokens','cfg-top-k','cfg-rep-pen','cfg-ctx','cfg-seed'].forEach(id => {
                 const el = document.getElementById(id);
-                if (el) el.addEventListener('change', saveAdvancedConfig);
+                if (el) {
+                  el.removeEventListener('change', saveAdvancedConfig);
+                  el.addEventListener('change', saveAdvancedConfig);
+                }
               });
 
               // Restore pipeline Gemini key for pipeline panel
@@ -2194,7 +2198,10 @@ WRITING RULES:
               document.getElementById('prompt-editor').value = DEFAULT_PROMPT;
               updatePromptDisplay();
             }
-            document.getElementById('prompt-modal').addEventListener('click', function(e){ if(e.target===this) closePromptModal(); });
+            const modalCloseHandler = function(e){ if(e.target===this) closePromptModal(); };
+            const promptModal = document.getElementById('prompt-modal');
+            promptModal.removeEventListener('click', modalCloseHandler);
+            promptModal.addEventListener('click', modalCloseHandler);
 
             // ── ADVANCED ──────────────────────────────────────────────────────────────
             function toggleAdvanced() {
@@ -2376,9 +2383,13 @@ WRITING RULES:
             let isDragging = false;
             function setupDrop() {
               const dz = document.getElementById('drop-zone');
-              dz.addEventListener('dragover', e=>{ e.preventDefault(); if(!isDragging){isDragging=true;dz.classList.add('drag-over');} });
-              dz.addEventListener('dragleave', ()=>{ isDragging=false; dz.classList.remove('drag-over'); });
-              dz.addEventListener('drop', e=>{ e.preventDefault(); isDragging=false; dz.classList.remove('drag-over'); const f=e.dataTransfer.files[0]; if(f&&f.name.endsWith('.docx')) handleFile(f); });
+              // Clone and replace to remove all old listeners
+              const dzNew = dz.cloneNode(true);
+              dz.parentNode.replaceChild(dzNew, dz);
+              const dzEl = document.getElementById('drop-zone');
+              dzEl.addEventListener('dragover', e=>{ e.preventDefault(); if(!isDragging){isDragging=true;dzEl.classList.add('drag-over');} });
+              dzEl.addEventListener('dragleave', ()=>{ isDragging=false; dzEl.classList.remove('drag-over'); });
+              dzEl.addEventListener('drop', e=>{ e.preventDefault(); isDragging=false; dzEl.classList.remove('drag-over'); const f=e.dataTransfer.files[0]; if(f&&f.name.endsWith('.docx')) handleFile(f); });
             }
             function togglePreview() {
               const p = document.getElementById('resume-preview');
@@ -2468,6 +2479,12 @@ WRITING RULES:
               } finally { 
                 setBusy(false); 
                 currentAbortController = null;
+              }
+            }
+
+            function cancelTailoring() {
+              if (currentAbortController) {
+                currentAbortController.abort();
               }
             }
 

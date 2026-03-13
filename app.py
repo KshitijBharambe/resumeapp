@@ -3,6 +3,7 @@ import json
 import shutil
 import requests
 import re
+import time
 from datetime import datetime
 from flask import Flask, request, jsonify, render_template, send_file
 from docx import Document
@@ -163,8 +164,9 @@ OPENAI_STATIC_MODELS = [
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
-# Store last raw model output for debug endpoint
-_last_raw = {"text": "", "ts": ""}
+# Store last raw model output for debug endpoint (with 1-hour TTL)
+_last_raw = {"text": "", "ts": "", "time": 0}
+_last_raw_ttl = 3600  # 1 hour in seconds
 
 
 def extract_json_array(text):
@@ -834,6 +836,7 @@ Begin the JSON array now:"""
         if context_length:
             payload["context_length"] = int(context_length)
 
+    resp = None
     try:
         resp = requests.post(chat_url, json=payload, headers=extra_headers, timeout=600, stream=True)
         resp.raise_for_status()
@@ -867,10 +870,18 @@ Begin the JSON array now:"""
     except Exception as e:
         print(f"[ERROR] Stream reading failed: {e}")
         return jsonify({"error": f"Error reading stream: {e}"}), 500
+    finally:
+        if resp:
+            resp.close()
 
     raw = _strip_think(raw)
+    # Cache raw output with TTL
+    current_time = time.time()
+    if current_time - _last_raw.get("time", 0) > _last_raw_ttl:
+        _last_raw["text"] = ""  # Clear expired cache
     _last_raw["text"] = raw
     _last_raw["ts"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    _last_raw["time"] = current_time
     print("[DEBUG] Raw output (first 800):", raw[:800])
 
     replacements = extract_json_array(raw)
@@ -1225,20 +1236,23 @@ def lm_call(
     resp.raise_for_status()
 
     raw = prefill or ""
-    for line in resp.iter_lines():
-        if not line:
-            continue
-        line = line.decode("utf-8") if isinstance(line, bytes) else line
-        if line.startswith("data: "):
-            line = line[6:]
-        if line.strip() == "[DONE]":
-            break
-        try:
-            chunk = json.loads(line)
-            delta = chunk["choices"][0]["delta"].get("content", "")
-            raw += delta
-        except Exception:
-            continue
+    try:
+        for line in resp.iter_lines():
+            if not line:
+                continue
+            line = line.decode("utf-8") if isinstance(line, bytes) else line
+            if line.startswith("data: "):
+                line = line[6:]
+            if line.strip() == "[DONE]":
+                break
+            try:
+                chunk = json.loads(line)
+                delta = chunk["choices"][0]["delta"].get("content", "")
+                raw += delta
+            except Exception:
+                continue
+    finally:
+        resp.close()
 
     raw_pre = raw
     raw = _strip_think(raw)
