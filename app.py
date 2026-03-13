@@ -503,17 +503,25 @@ def apply_replacements(original_path, output_path, replacements):
     doc.save(output_path)
 
 
+ORIGINAL_RESUME_INFO = os.path.join(UPLOAD_FOLDER, "original_filename.txt")
+
 def resume_info_data():
     if not os.path.exists(DEFAULT_RESUME):
         return {"exists": False}
     text = extract_resume_text(DEFAULT_RESUME)
     doc = Document(DEFAULT_RESUME)
     paras = [p.text.strip() for p in doc.paragraphs if p.text.strip()]
+    original_fn = "base_resume.docx"
+    if os.path.exists(ORIGINAL_RESUME_INFO):
+        with open(ORIGINAL_RESUME_INFO, "r", encoding="utf-8") as f:
+            original_fn = f.read().strip()
+            
     return {
         "exists": True,
         "paragraphs": len(paras),
         "words": len(text.split()),
         "filename": "base_resume.docx",
+        "original_filename": original_fn,
         "paragraphs_text": paras,
     }
 
@@ -558,6 +566,8 @@ def upload_resume():
     if not f.filename.endswith(".docx"):
         return jsonify({"error": "Only .docx files are accepted"}), 400
     f.save(DEFAULT_RESUME)
+    with open(ORIGINAL_RESUME_INFO, "w", encoding="utf-8") as out:
+        out.write(f.filename)
     return jsonify({"success": True, **resume_info_data()})
 
 
@@ -782,11 +792,14 @@ Begin the JSON array now:"""
     try:
         resp = requests.post(chat_url, json=payload, headers=extra_headers, timeout=600, stream=True)
         resp.raise_for_status()
-    except requests.exceptions.ConnectionError:
+    except requests.exceptions.ConnectionError as e:
+        print(f"[ERROR] ConnectionError connecting to {provider_label}: {e}")
         return jsonify({"error": f"Cannot connect to {provider_label}. Check the URL is reachable."}), 503
-    except requests.exceptions.Timeout:
+    except requests.exceptions.Timeout as e:
+        print(f"[ERROR] Timeout connecting to {provider_label}: {e}")
         return jsonify({"error": f"{provider_label} timed out (10 min). Model may be too slow."}), 504
     except Exception as e:
+        print(f"[ERROR] Exception connecting to {provider_label}: {e}")
         return jsonify({"error": f"{provider_label} error: {e}"}), 500
 
     raw = "["
@@ -803,9 +816,11 @@ Begin the JSON array now:"""
                 chunk = json.loads(line)
                 delta = chunk["choices"][0]["delta"].get("content", "")
                 raw += delta
-            except Exception:
+            except Exception as e:
+                print(f"[WARN] Failed to parse stream chunk: {line} - Error: {e}")
                 continue
     except Exception as e:
+        print(f"[ERROR] Stream reading failed: {e}")
         return jsonify({"error": f"Error reading stream: {e}"}), 500
 
     raw = _strip_think(raw)

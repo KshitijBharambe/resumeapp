@@ -1417,6 +1417,24 @@
         text-align: center;
       }
 
+      /* ── RUN BUTTON CONTAINER ── */
+      .run-btn-container {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 1.5rem;
+      }
+      .btn-run {
+        width: 100%;
+        margin-top: 0;
+      }
+      .cancel-btn {
+        margin-top: 0;
+        padding: 0.8rem 1rem;
+        font-size: 0.85rem;
+        display: none;
+      }
+
+
       /* ── HISTORY VIEW ── */
       .history-toolbar {
         display: flex;
@@ -1780,7 +1798,10 @@
 
 
             <!-- Run -->
-            <button class="btn btn-primary btn-run" id="run-btn" onclick="runTailor()">Tailor Resume →</button>
+            <div class="run-btn-container">
+              <button class="btn btn-primary btn-run" id="run-btn" onclick="runTailor()">Tailor Resume →</button>
+              <button class="btn btn-danger cancel-btn" id="cancel-btn" onclick="cancelTailoring()">Cancel</button>
+            </div>
 
             <!-- Progress -->
             <div class="progress-wrap" id="progress-wrap">
@@ -1910,7 +1931,7 @@ WRITING RULES:
 - Summary: under 50 words, no first person, reflect the seniority and domain of the JD.
 - Skills lines: reorder within existing categories to front-load JD-critical terms. Never add skills not present.`;
 
-            const hasDefault = {{ 'true' if has_default else 'false' }};
+            const hasDefault = ("{{ 'true' if has_default else 'false' }}" === "true");
             let resumeReady = hasDefault || !!localStorage.getItem('rt_resume_b64');
             let currentProvider = localStorage.getItem('rt_provider') || 'lmstudio';
             let pipelineConfigMode = 'default'; // 'default' | 'custom'
@@ -2393,10 +2414,12 @@ WRITING RULES:
               if (meta.hasKey && !api_key && !['custom'].includes(p)) return showError(`Enter your ${meta.label} API key above.`);
               const adv = getAdvancedConfig();
               setBusy(true, p);
+              currentAbortController = new AbortController();
               try {
                 const r = await fetch('/tailor', {
                   method:'POST', headers:{'Content-Type':'application/json'},
-                  body: JSON.stringify({provider:p, model, api_key, lm_url, system_prompt:sysPrompt, jd_text:jd, job_title:jobTitle, ...adv})
+                  body: JSON.stringify({provider:p, model, api_key, lm_url, system_prompt:sysPrompt, jd_text:jd, job_title:jobTitle, ...adv}),
+                  signal: currentAbortController.signal
                 });
                 const d = await r.json();
                 if (!r.ok||d.error) showError(d.error||'Unexpected error.',d.hint||'',d.raw_preview||'');
@@ -2426,23 +2449,33 @@ WRITING RULES:
               const adv = getAdvancedConfig();
               setBusy(true,'pipeline');
               startPipelineStepAnimation();
+              currentAbortController = new AbortController();
               try {
                 const r = await fetch('/tailor-pipeline',{
                   method:'POST', headers:{'Content-Type':'application/json'},
-                  body: JSON.stringify({jd_text:jd,api_key:apiKey,local_model:localModel,gemini_model:geminiModel,lm_url,top_k:adv.top_k,repeat_penalty:adv.repeat_penalty,seed:adv.seed,context_length:adv.context_length})
+                  body: JSON.stringify({jd_text:jd,api_key:apiKey,local_model:localModel,gemini_model:geminiModel,lm_url,top_k:adv.top_k,repeat_penalty:adv.repeat_penalty,seed:adv.seed,context_length:adv.context_length}),
+                  signal: currentAbortController.signal
                 });
                 const d = await r.json();
                 stopPipelineStepAnimation(d.pipeline_log);
                 if (!r.ok||d.error) showError(d.error||'Pipeline error.',d.hint||'',d.raw_preview||'');
                 else { renderResults(d,true); saveToHistory(d,'pipeline',localModel+'+'+geminiModel,'',jd); }
-              } catch(e) { showError('Network error: '+e.message); resetPipelineSteps(); }
-              finally { setBusy(false); }
+              } catch(e) { 
+                if (e.name === 'AbortError') showError('Pipeline canceled.');
+                else showError('Network error: '+e.message); 
+                resetPipelineSteps(); 
+              } finally { 
+                setBusy(false); 
+                currentAbortController = null;
+              }
             }
 
             function setBusy(on, provider) {
               const btn = document.getElementById('run-btn');
+              const cancelBtn = document.getElementById('cancel-btn');
               const prog = document.getElementById('progress-wrap');
               btn.disabled = on;
+              cancelBtn.style.display = on ? 'inline-flex' : 'none';
               const pipelineProgress = document.getElementById('pipeline-progress');
               const simpleProgress = document.getElementById('simple-progress');
               if (on) {
