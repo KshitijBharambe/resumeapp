@@ -55,27 +55,7 @@ def _tailor_anthropic(data):
     resume_text = extract_resume_text(DEFAULT_RESUME)
     resume_paras = get_resume_paragraphs(DEFAULT_RESUME)
 
-    combined_message = f"""JOB DESCRIPTION:
----
-{jd_text}
----
-
-CURRENT RESUME (full text):
----
-{resume_text}
----
-
-RESUME PARAGRAPHS (indexed):
----
-{json.dumps(resume_paras, indent=2)}
----
-
-Analyze the JD against the resume. Output ONLY a raw JSON array of changes.
-Use this exact format:
-[
-  {{"original": "exact paragraph text verbatim from resume", "replacement": "tailored version"}}
-]
-Only include paragraphs that actually change. If nothing needs changing, output: []"""
+    combined_message = build_tailor_message(resume_text, resume_paras, jd_text)
 
     try:
         resp = requests.post(
@@ -167,6 +147,53 @@ os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 # Store last raw model output for debug endpoint (with 1-hour TTL)
 _last_raw = {"text": "", "ts": "", "time": 0}
 _last_raw_ttl = 3600  # 1 hour in seconds
+
+
+def build_tailor_message(resume_text, resume_paras, jd_text):
+    """Build the unified user message for all tailoring providers."""
+    return f"""JOB DESCRIPTION:
+---
+{jd_text}
+---
+
+CURRENT RESUME (full text):
+---
+{resume_text}
+---
+
+RESUME PARAGRAPHS (for output — copy "original" values verbatim from here):
+---
+{json.dumps(resume_paras, indent=2)}
+---
+
+Follow these steps internally (do NOT output the steps — only output the final JSON):
+
+STEP 1 — INDUSTRY & KEYWORD EXTRACTION
+Identify the company's industry sector (e.g., fintech, healthtech, SaaS, e-commerce).
+List every keyword, skill, tool, framework, and theme the JD requires or rewards. Include both explicit requirements and implied ones (e.g. "millions of concurrent users" implies scalability, high-traffic, distributed systems).
+
+STEP 2 — GAP ANALYSIS
+For each keyword from Step 1, check whether it already appears in the resume. Mark it PRESENT or MISSING. Synonyms only count if they are close enough to pass an ATS keyword match.
+
+STEP 3 — CHANGE PLAN
+For each MISSING keyword, identify the single best paragraph to absorb it naturally — the keyword must fit the paragraph's existing context. If no paragraph can absorb it without sounding forced, skip it.
+Also flag paragraphs with weak/banned action verbs or vague phrasing that should be strengthened for this role and industry.
+
+STEP 4 — REWRITE
+Rewrite only the paragraphs identified in Step 3. Each rewrite must:
+- Embed the target keyword(s) naturally in context
+- Frame experience using vocabulary that resonates with the target industry
+- Start with a varied, strong past-tense action verb (no two consecutive bullets same verb)
+- Preserve all existing numbers and metrics exactly
+- Stay under 32 words (bullets) or 50 words (summary)
+- Sound like a human wrote it — varied structure, no clichés
+
+STEP 5 — OUTPUT
+Output ONLY this JSON array, nothing else:
+[
+  {{"original": "exact paragraph text copied verbatim from the resume", "replacement": "rewritten version"}}
+]
+Only include paragraphs that actually changed. If nothing changed, output: []"""
 
 
 def extract_json_array(text):
@@ -788,40 +815,20 @@ def _tailor_impl(data):
     resume_text = extract_resume_text(DEFAULT_RESUME)
     resume_paras = get_resume_paragraphs(DEFAULT_RESUME)
 
-    combined_message = f"""JOB DESCRIPTION:
----
-{jd_text}
----
-
-CURRENT RESUME (full text):
----
-{resume_text}
----
-
-RESUME PARAGRAPHS (indexed):
----
-{json.dumps(resume_paras, indent=2)}
----
-
-Analyze the JD against the resume. Identify which paragraphs need tailoring to match the JD.
-Apply all rules from your instructions (XYZ format, word limits, keyword injection, etc.).
-
-Output ONLY a JSON array of changes — nothing else. No explanation, no markdown, no preamble.
-Use this exact format:
-[
-  {{"original": "exact paragraph text verbatim from resume", "replacement": "tailored version"}}
-]
-Only include paragraphs that actually change. If nothing needs changing, output: []
-Begin the JSON array now:"""
+    combined_message = build_tailor_message(resume_text, resume_paras, jd_text)
 
     local_providers = {"lmstudio", "ollama", "custom"}
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": combined_message},
+    ]
+    # Only use assistant prefill for local providers where it reliably forces JSON output
+    if provider in local_providers:
+        messages.append({"role": "assistant", "content": "["})
+
     payload = {
         "model": model,
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": combined_message},
-            {"role": "assistant", "content": "["},
-        ],
+        "messages": messages,
         "temperature": temperature,
         "max_tokens": max_tokens,
         "top_p": top_p,
@@ -850,7 +857,7 @@ Begin the JSON array now:"""
         print(f"[ERROR] Exception connecting to {provider_label}: {e}")
         return jsonify({"error": f"{provider_label} error: {e}"}), 500
 
-    raw = "["
+    raw = "[" if provider in local_providers else ""
     try:
         for line in resp.iter_lines():
             if not line:
@@ -1024,46 +1031,7 @@ def _tailor_gemini_impl(data):
     resume_text = extract_resume_text(DEFAULT_RESUME)
     resume_paras = get_resume_paragraphs(DEFAULT_RESUME)
 
-    prompt = f"""JOB DESCRIPTION:
----
-{jd_text}
----
-
-RESUME (full text):
----
-{resume_text}
----
-
-RESUME PARAGRAPHS (for output — copy "original" values verbatim from here):
----
-{json.dumps(resume_paras, indent=2)}
----
-
-Follow these steps internally, in order:
-
-STEP 1 — KEYWORD EXTRACTION
-List every keyword, skill, tool, framework, and theme the JD requires or rewards. Include both explicit requirements and implied ones (e.g. if it says "millions of concurrent users", the keyword is "scalable" / "high-traffic" / "concurrent").
-
-STEP 2 — GAP ANALYSIS
-For each keyword from Step 1, check whether it appears anywhere in the resume (any section). Mark it PRESENT or MISSING. Be strict — synonyms only count if they are close enough to satisfy an ATS.
-
-STEP 3 — KEYWORD PLACEMENT
-For each MISSING keyword, identify the single best paragraph in the resume to absorb it naturally. A keyword must fit the existing context of that paragraph — do not force it. If no paragraph can absorb it naturally, skip it.
-
-STEP 4 — REWRITE
-Rewrite only the paragraphs identified in Step 3, plus any paragraphs whose wording is genuinely weak for this role. Each rewrite must:
-- Embed the target keyword(s) naturally in context
-- Start with a varied, strong past-tense action verb
-- Preserve all existing numbers and metrics exactly
-- Stay under 32 words (bullets) or 50 words (summary)
-- Sound like a human wrote it — varied structure, no repeated patterns
-
-STEP 5 — OUTPUT
-Output ONLY this JSON array, nothing else:
-[
-  {{"original": "exact paragraph text copied verbatim from the resume", "replacement": "rewritten version"}}
-]
-Only include paragraphs that actually changed. If nothing changed, output: []"""
+    prompt = build_tailor_message(resume_text, resume_paras, jd_text)
 
     try:
         client = genai.Client(api_key=api_key)

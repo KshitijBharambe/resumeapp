@@ -1,11 +1,12 @@
 .venv/
 outputs/
-.agents/skills
+.agents/*
 .claude/
 CLAUDE.md
 skills-lock.json
 .DS_Store
-.agent/skills/frontend-design
-.agent/skills/mcp-integration
 resume/base_resume.docx
 resume/DevOps.docx
+__pycache__/
+.agent/skills/frontend-design
+.agent/skills/mcp-integration
