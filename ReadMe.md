@@ -1,41 +1,42 @@
 # Resume Tailor
 
-Local webapp that tailors your resume to a job description using LM Studio (Qwen or any model).
+Local Flask webapp that tailors your resume to a job description using LM Studio or cloud providers.
 
 ## Setup
 
 ```bash
-# 1. Install Python dependencies
-pip install -r requirements.txt
+# 1. Install dependencies
+uv sync
 
-# 2. Make sure LM Studio is running on localhost:1234
-#    with your Qwen model loaded
-
-# 3. Run the app
+# 2. Run the app
 python app.py
 ```
 
-Then open http://localhost:5000
+Then open http://localhost:8000
 
 ## How it works
 
-1. Paste your **JD system prompt** (your tailoring instructions to the model)
-2. Paste the **job description**
-3. Click **Tailor Resume**
-4. Review the before/after diff of every changed paragraph
-5. Download the tailored `.docx` — same formatting as your original, content updated
+1. Upload a base `.docx` resume
+2. Paste a job description or extract one from a URL
+3. Choose a provider and model
+4. Click **Tailor Resume**
+5. Review the before/after diff of every changed paragraph
+6. Download the tailored `.docx`
 
 ## File structure
 
 ```
 resume-tailor/
-├── app.py                  # Flask backend
-├── requirements.txt
+├── app.py                  # Flask routes and app entrypoint
+├── config.py               # Shared paths, provider metadata, system prompt
+├── services/
+│   ├── jd_extraction_service.py
+│   ├── resume_service.py
+│   └── tailor_service.py
+├── pyproject.toml
 ├── templates/
-│   └── index.html          # Frontend (uses oat.ink UI library)
+│   └── index.html          # Single-page frontend with inline CSS and JS
 ├── static/
-│   ├── oat.min.css         # oat UI (local copy)
-│   └── oat.min.js
 ├── resume/
 │   └── base_resume.docx    # Your master resume (upload via UI or drop here)
 └── outputs/                # Generated tailored resumes (auto-created)
@@ -44,6 +45,5 @@ resume-tailor/
 ## Notes
 
 - The app preserves all original `.docx` formatting — only text content is changed
-- `<think>` tags from Qwen3 reasoning models are automatically stripped
-- Your system prompt is saved in browser localStorage between sessions
+- `<think>` tags from reasoning-model output are stripped before JSON parsing
 - Outputs are timestamped so you never overwrite a previous version

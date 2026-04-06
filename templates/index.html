@@ -756,6 +756,97 @@
       .results-wrap.show {
         display: block;
       }
+      /* ── INLINE ROLE SUGGESTION (per section group) ── */
+      .role-suggestion-inline {
+        background: rgba(245, 158, 11, 0.06);
+        border: 1px solid rgba(245, 158, 11, 0.2);
+        border-radius: var(--radius-sm);
+        padding: 0.5rem 0.75rem;
+        margin-top: 0.4rem;
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+        flex-wrap: wrap;
+      }
+      .rsi-label {
+        font-family: var(--font-mono);
+        font-size: 0.58rem;
+        color: var(--amber);
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        flex-shrink: 0;
+      }
+      .rsi-orig {
+        font-family: var(--font-mono);
+        font-size: 0.68rem;
+        color: var(--text-muted);
+        text-decoration: line-through;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 200px;
+      }
+      .rsi-arrow {
+        color: var(--amber);
+        font-size: 0.72rem;
+        flex-shrink: 0;
+      }
+      .rsi-new {
+        font-family: var(--font-mono);
+        font-size: 0.7rem;
+        font-weight: 600;
+        color: var(--amber);
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .rsi-actions {
+        display: flex;
+        gap: 0.4rem;
+        flex-shrink: 0;
+        margin-left: auto;
+      }
+      .btn-use-role {
+        font-family: var(--font-mono);
+        font-size: 0.6rem;
+        font-weight: 700;
+        padding: 0.2rem 0.55rem;
+        border-radius: 4px;
+        border: 1px solid rgba(245, 158, 11, 0.45);
+        background: rgba(245, 158, 11, 0.1);
+        color: var(--amber);
+        cursor: pointer;
+        transition: all var(--transition);
+        white-space: nowrap;
+      }
+      .btn-use-role:hover:not(:disabled) {
+        background: rgba(245, 158, 11, 0.22);
+        border-color: var(--amber);
+      }
+      .btn-use-role.applied {
+        border-color: rgba(34, 197, 94, 0.4);
+        background: rgba(34, 197, 94, 0.08);
+        color: var(--green);
+        cursor: default;
+      }
+      .btn-keep-role {
+        font-family: var(--font-mono);
+        font-size: 0.6rem;
+        padding: 0.2rem 0.45rem;
+        border-radius: 4px;
+        border: 1px solid var(--border);
+        background: transparent;
+        color: var(--text-muted);
+        cursor: pointer;
+        transition: all var(--transition);
+      }
+      .btn-keep-role:hover {
+        border-color: var(--border-bright);
+        color: var(--text);
+      }
       .results-header {
         display: flex;
         align-items: center;
@@ -1433,10 +1524,22 @@
             <!-- Job Description -->
             <div class="panel-card">
               <div class="panel-label">Job Description</div>
-              <div style="display:flex;gap:0.4rem;margin-bottom:0.5rem">
-                <input type="text" id="jd-url" placeholder="Paste job posting URL to auto-extract..."
-                       style="flex:1;font-family:var(--font-mono);font-size:0.72rem" />
-                <button class="btn btn-ghost" onclick="extractJdFromUrl()" id="extract-url-btn">
+              <div style="display: flex; gap: 0.4rem; margin-bottom: 0.5rem">
+                <input
+                  type="text"
+                  id="jd-url"
+                  placeholder="Paste job posting URL to auto-extract..."
+                  style="
+                    flex: 1;
+                    font-family: var(--font-mono);
+                    font-size: 0.72rem;
+                  "
+                />
+                <button
+                  class="btn btn-ghost"
+                  onclick="extractJdFromUrl()"
+                  id="extract-url-btn"
+                >
                   Extract
                 </button>
               </div>
@@ -1595,19 +1698,19 @@
                   >
                 </div>
               </div>
-
             </div>
             <!-- /panel-card: provider -->
 
-            <!-- Advanced Configuration -->
+            <!-- Advanced Configuration (temporarily disabled — breaks OpenRouter models) -->
             <button
               class="advanced-toggle"
               id="adv-toggle"
               onclick="toggleAdvanced()"
+              style="display: none"
             >
               <span class="chevron">▾</span> Advanced Configuration
             </button>
-            <div class="advanced-panel" id="adv-panel">
+            <div class="advanced-panel" id="adv-panel" style="display: none">
               <div class="adv-grid">
                 <div class="adv-field">
                   <label
@@ -2253,20 +2356,9 @@
           document.getElementById("cfg-ctx").value = saved.context_length || "";
       }
       function getAdvancedConfig() {
-        return {
-          temperature: parseFloat(document.getElementById("cfg-temp").value),
-          top_p: parseFloat(document.getElementById("cfg-top-p").value),
-          max_tokens: parseInt(document.getElementById("cfg-max-tokens").value),
-          top_k:
-            parseInt(document.getElementById("cfg-top-k").value) || undefined,
-          repeat_penalty: parseFloat(
-            document.getElementById("cfg-rep-pen").value,
-          ),
-          context_length: document.getElementById("cfg-ctx").value
-            ? parseInt(document.getElementById("cfg-ctx").value)
-            : undefined,
-          seed: parseInt(document.getElementById("cfg-seed").value),
-        };
+        // Temporarily disabled — advanced config breaks OpenRouter models.
+        // Server-side defaults will be used instead.
+        return {};
       }
 
       // (old LM Studio / Gemini model code replaced by unified provider system above)
@@ -2497,6 +2589,34 @@
       }
 
       // ── RESULTS ───────────────────────────────────────────────────────────────
+
+      // Tracks which role suggestions the user has accepted (keyed by original_title)
+      // and the source filename to apply them from. Reset each renderResults call.
+      let _roleSuggestions = [];
+      let _roleBaseFilename = null;
+      let _roleAccepted = new Set(); // original_title strings
+
+      /** Given a section label like "WORK EXPERIENCE > Sr Engineer | Acme", return the title part. */
+      function _sectionTitle(label) {
+        const idx = label.indexOf(" > ");
+        return idx !== -1 ? label.slice(idx + 3) : "";
+      }
+
+      /** Collapse all whitespace (tabs, multiple spaces) to a single space, lower-case. */
+      function _normStr(s) {
+        return s.replace(/\s+/g, " ").trim().toLowerCase();
+      }
+
+      /** Replace the job-title portion of an original title line with the suggested title. */
+      function _buildNewTitleLine(originalLine, suggestedTitle) {
+        for (const sep of [" | ", " – ", " — ", " - ", ", "]) {
+          if (originalLine.includes(sep)) {
+            return suggestedTitle + originalLine.slice(originalLine.indexOf(sep));
+          }
+        }
+        return suggestedTitle;
+      }
+
       function renderResults(d) {
         const wrap = document.getElementById("results-wrap");
         const list = document.getElementById("changes-list");
@@ -2506,6 +2626,19 @@
         badge.textContent = `${d.changes_count} edit${d.changes_count !== 1 ? "s" : ""}`;
         badge.className = "badge";
         list.innerHTML = "";
+
+        // Initialise role suggestion state for this result set
+        _roleSuggestions = d.role_suggestions || [];
+        _roleBaseFilename = d.filename;
+        _roleAccepted = new Set();
+
+        // Build a lookup: normalised section-title-part → suggestion object
+        const suggestionByTitle = new Map();
+        _roleSuggestions.forEach((s) => {
+          if (s.original_title) {
+            suggestionByTitle.set(_normStr(s.original_title), s);
+          }
+        });
 
         // Group changes by section
         const groups = [];
@@ -2533,8 +2666,51 @@
             </span>`;
           header.onclick = () => group.classList.toggle("collapsed");
 
+          // Check if this section has a matching role suggestion.
+          // Use normalised strings (collapsed whitespace, lower-case) for comparison.
+          // Try both the title-part (after " > ") and the full section label,
+          // since some resume formats have no separate role-title line.
+          const titlePart = _normStr(_sectionTitle(g.section));
+          const fullSection = _normStr(g.section);
+          let matchedSuggestion = null;
+          for (const [key, s] of suggestionByTitle) {
+            const candidates = titlePart ? [titlePart, fullSection] : [fullSection];
+            for (const candidate of candidates) {
+              if (
+                candidate === key ||
+                candidate.startsWith(key) ||
+                key.startsWith(candidate) ||
+                (candidate.length > 6 && key.includes(candidate)) ||
+                (key.length > 6 && candidate.includes(key))
+              ) {
+                matchedSuggestion = s;
+                break;
+              }
+            }
+            if (matchedSuggestion) break;
+          }
+
           const body = document.createElement("div");
           body.className = "section-group-body";
+
+          // Inline role suggestion strip (between header and change cards)
+          if (matchedSuggestion) {
+            const newLine = _buildNewTitleLine(matchedSuggestion.original_title, matchedSuggestion.suggested_title);
+            const strip = document.createElement("div");
+            strip.className = "role-suggestion-inline";
+            strip.dataset.originalTitle = matchedSuggestion.original_title;
+            strip.dataset.newTitle = newLine;
+            strip.innerHTML = `
+              <span class="rsi-label">💡 Role</span>
+              <span class="rsi-orig" title="${esc(matchedSuggestion.original_title)}">${esc(matchedSuggestion.original_title)}</span>
+              <span class="rsi-arrow">→</span>
+              <span class="rsi-new" title="${esc(newLine)}">${esc(newLine)}</span>
+              <span class="rsi-actions">
+                <button class="btn-use-role" onclick="handleUseRole(this, '${esc(matchedSuggestion.original_title)}', '${esc(newLine)}')">Use →</button>
+                <button class="btn-keep-role" onclick="this.closest('.role-suggestion-inline').remove()">Keep</button>
+              </span>`;
+            body.insertBefore(strip, body.firstChild);
+          }
 
           g.changes.forEach((c) => {
             const card = document.createElement("div");
@@ -2573,6 +2749,51 @@
         if (d.docx_b64) cacheOutput(d.filename, d.docx_b64);
         wrap.className = "results-wrap show";
       }
+
+      /**
+       * Called when user clicks "Use →" on an inline role suggestion.
+       * Collects ALL currently-accepted suggestions and re-applies from the base file.
+       */
+      async function handleUseRole(btn, originalTitle, newTitle) {
+        btn.disabled = true;
+        btn.textContent = "…";
+
+        _roleAccepted.add(JSON.stringify({ original_title: originalTitle, new_title: newTitle }));
+
+        const changes = Array.from(_roleAccepted).map((s) => JSON.parse(s));
+
+        try {
+          const resp = await fetch("/apply-role-changes", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ filename: _roleBaseFilename, changes }),
+          });
+          const data = await resp.json();
+          if (!resp.ok) throw new Error(data.error || "Failed");
+
+          // Update download link to the new file
+          const dlFilename = document.getElementById("dl-filename");
+          const dlLink = document.getElementById("dl-link");
+          dlFilename.textContent = data.filename;
+          dlLink.onclick = (e) => {
+            e.preventDefault();
+            downloadFile(data.filename);
+          };
+          if (data.docx_b64) cacheOutput(data.filename, data.docx_b64);
+
+          btn.textContent = "Applied ✓";
+          btn.classList.add("applied");
+          btn.disabled = true;
+          // Hide the "Keep" button since choice is made
+          const keepBtn = btn.closest(".rsi-actions").querySelector(".btn-keep-role");
+          if (keepBtn) keepBtn.style.display = "none";
+        } catch (err) {
+          btn.disabled = false;
+          btn.textContent = "Use →";
+          _roleAccepted.delete(JSON.stringify({ original_title: originalTitle, new_title: newTitle }));
+          showError("Failed to apply role change: " + err.message);
+        }
+      }
       function hideResults() {
         document.getElementById("results-wrap").className = "results-wrap";
       }
@@ -2593,7 +2814,7 @@
         a.download = filename;
         document.body.appendChild(a);
         a.click();
-        document.body.removeChild(a);
+        a.remove();
         setTimeout(() => URL.revokeObjectURL(url), 5000);
       }
 
@@ -2752,25 +2973,44 @@
           .map((l) => l.trim())
           .filter((l) => l.length > 2);
         const genericStarters = new Set([
-          "the company", "the organization", "the team", "this",
-          "our company", "the ideal candidate", "the role",
-          "the position", "this position", "the successful candidate",
-          "us", "the job", "the opportunity", "this role"
+          "the company",
+          "the organization",
+          "the team",
+          "this",
+          "our company",
+          "the ideal candidate",
+          "the role",
+          "the position",
+          "this position",
+          "the successful candidate",
+          "us",
+          "the job",
+          "the opportunity",
+          "this role",
         ]);
 
         for (const line of lines.slice(0, 15)) {
           // "Role at Company" or "Role @ Company"
-          const atMatch = line.match(/^[\w\s,()/-]{3,40}\s+(?:at|@)\s+([A-Z][\w\s&.'-]{1,30})$/);
+          const atMatch = line.match(
+            /^[\w\s,()/-]{3,40}\s+(?:at|@)\s+([A-Z][\w\s&.'-]{1,30})$/,
+          );
           if (atMatch) return atMatch[1].trim().slice(0, 50);
           // "About/Join/Why Company"
-          const aboutMatch = line.match(/^(?:About|Join|Why|Work at|Working at)\s+([A-Z][\w\s&.'-]{1,30})$/);
-          if (aboutMatch && !genericStarters.has(aboutMatch[1].trim().toLowerCase()))
+          const aboutMatch = line.match(
+            /^(?:About|Join|Why|Work at|Working at)\s+([A-Z][\w\s&.'-]{1,30})$/,
+          );
+          if (
+            aboutMatch &&
+            !genericStarters.has(aboutMatch[1].trim().toLowerCase())
+          )
             return aboutMatch[1].trim().slice(0, 50);
         }
 
         // "[Company] is a/an/the/dedicated/seeking..." in first ~30 lines
         const full = lines.slice(0, 30).join(" ");
-        const isMatch = full.match(/(?:^|\.\s+)([A-Z][A-Za-z\s&.'-]{2,40}?)\s+(?:is\s+(?:a|an|the|one|dedicated|committed|seeking|looking|hiring|currently)|are\s+(?:a|an|the|seeking|looking|hiring))/);
+        const isMatch = full.match(
+          /(?:^|\.\s+)([A-Z][A-Za-z\s&.'-]{2,40}?)\s+(?:is\s+(?:a|an|the|one|dedicated|committed|seeking|looking|hiring|currently)|are\s+(?:a|an|the|seeking|looking|hiring))/,
+        );
         if (isMatch && !genericStarters.has(isMatch[1].trim().toLowerCase()))
           return isMatch[1].trim().slice(0, 50);
 
@@ -2815,9 +3055,9 @@
       // ── UTILS ─────────────────────────────────────────────────────────────────
       function esc(s) {
         return (s || "")
-          .replace(/&/g, "&amp;")
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;");
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;");
       }
     </script>
   </body>
