@@ -17,6 +17,7 @@ from flask import (
 from werkzeug.utils import secure_filename
 
 from config import BASE_DIR, DEFAULT_RESUME, ORIGINAL_RESUME_INFO, OUTPUT_FOLDER
+from services.ats_service import ats_score_resume
 from services.jd_extraction_service import extract_job_description
 from services.resume_service import apply_title_changes, resume_info_data
 from services.tailor_service import provider_models, read_docx_b64, tailor_resume
@@ -154,6 +155,11 @@ def tailor():
     # to the UI). The streaming helper was causing the frontend to not
     # receive exception bodies reliably.
     return tailor_resume(request.json or {})
+
+
+@app.route("/ats-score", methods=["POST"])
+def ats_score():
+    return ats_score_resume(request.json or {})
 
 
 @app.errorhandler(Exception)

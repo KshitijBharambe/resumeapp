@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Resume Tailor</title>
+    <title>RAMP — Resume Analysis</title>
     <link
       rel="icon"
       type="image/png"
@@ -33,9 +33,9 @@
         --text: #e8e8f0;
         --text-muted: #6b6b80;
         --text-dim: #4a4a60;
-        --accent: #6c63ff;
-        --accent-soft: rgba(108, 99, 255, 0.15);
-        --accent-glow: rgba(108, 99, 255, 0.3);
+        --accent: #10b981;
+        --accent-soft: rgba(16, 185, 129, 0.15);
+        --accent-glow: rgba(16, 185, 129, 0.3);
         --green: #22c55e;
         --green-soft: rgba(34, 197, 94, 0.12);
         --red: #ef4444;
@@ -62,18 +62,6 @@
         min-height: 100vh;
       }
 
-      body::before {
-        content: "";
-        position: fixed;
-        inset: 0;
-        background-image:
-          linear-gradient(rgba(108, 99, 255, 0.03) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(108, 99, 255, 0.03) 1px, transparent 1px);
-        background-size: 40px 40px;
-        pointer-events: none;
-        z-index: 0;
-      }
-
       .container {
         max-width: 900px;
         margin: 0 auto;
@@ -84,12 +72,19 @@
 
       /* ── HEADER ── */
       .header {
+        position: sticky;
+        top: 0;
+        z-index: 100;
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 1.75rem 0 1.5rem;
+        padding: 1rem 1.5rem;
+        margin: 0 -1.5rem 2rem;
+        background: rgba(10, 10, 14, 0.85);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
         border-bottom: 1px solid var(--border);
-        margin-bottom: 2rem;
+        box-shadow: 0 1px 0 rgba(16, 185, 129, 0.06);
       }
       .logo {
         display: flex;
@@ -99,7 +94,7 @@
       .logo-icon {
         width: 28px;
         height: 28px;
-        background: linear-gradient(135deg, var(--accent), #a78bfa);
+        background: linear-gradient(135deg, var(--accent), #34d399);
         border-radius: 6px;
         display: flex;
         align-items: center;
@@ -500,7 +495,7 @@
       .btn-outline {
         background: transparent;
         color: var(--accent);
-        border: 1px solid rgba(108, 99, 255, 0.35);
+        border: 1px solid rgba(16, 185, 129, 0.35);
       }
       .btn-outline:hover {
         background: var(--accent-soft);
@@ -676,7 +671,7 @@
       }
       .progress-bar-fill {
         height: 100%;
-        background: linear-gradient(90deg, var(--accent), #a78bfa);
+        background: linear-gradient(90deg, var(--accent), #34d399);
         border-radius: 9999px;
         width: 0%;
         animation: progressIndeterminate 1.8s ease-in-out infinite;
@@ -866,7 +861,7 @@
         padding: 0.2rem 0.6rem;
         border-radius: 9999px;
         background: var(--accent-soft);
-        border: 1px solid rgba(108, 99, 255, 0.3);
+        border: 1px solid rgba(16, 185, 129, 0.3);
         color: var(--accent);
       }
       .section-divider {
@@ -892,7 +887,7 @@
         white-space: nowrap;
         padding: 0.15rem 0.5rem;
         background: var(--accent-soft);
-        border: 1px solid rgba(108, 99, 255, 0.25);
+        border: 1px solid rgba(16, 185, 129, 0.25);
         border-radius: 4px;
       }
       .change-section-tag {
@@ -1281,9 +1276,10 @@
         color: var(--text);
       }
       .view-tab.active {
-        background: var(--surface3);
-        color: var(--text);
-        border: 1px solid var(--border-bright);
+        background: rgba(16, 185, 129, 0.1);
+        color: var(--accent);
+        border: 1px solid rgba(16, 185, 129, 0.35);
+        font-weight: 600;
       }
       .history-count {
         background: var(--accent);
@@ -1407,6 +1403,276 @@
           grid-template-columns: 1fr;
         }
       }
+
+      /* ── ATS SCORE VIEW ── */
+      .ats-cfg-row {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+      }
+      .ats-cfg-row select {
+        flex-shrink: 0;
+        min-width: 120px;
+      }
+      .ats-cfg-row input[type="text"],
+      .ats-cfg-row input[type="password"] {
+        flex: 1;
+        min-width: 150px;
+      }
+
+      /* ATS Top Row: gauge + summary */
+      .ats-top-row {
+        display: flex;
+        gap: 1rem;
+        align-items: stretch;
+        margin-top: 1.5rem;
+      }
+      .ats-score-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 1.5rem 1.25rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.5rem;
+        min-width: 175px;
+        flex-shrink: 0;
+      }
+      .ats-score-label {
+        font-family: var(--font-mono);
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        margin-top: 0.2rem;
+      }
+      .ats-summary-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 1.1rem 1.25rem;
+        flex: 1;
+      }
+      .ats-summary-text {
+        font-size: 0.82rem;
+        color: var(--text-muted);
+        line-height: 1.65;
+        margin-top: 0.35rem;
+      }
+
+      /* Factor bars */
+      .factor-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.85rem;
+        padding: 0.1rem 0;
+      }
+      .factor-row {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+      }
+      .factor-name {
+        font-size: 0.78rem;
+        font-weight: 500;
+        color: var(--text);
+        width: 195px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+      }
+      .factor-weight-tag {
+        font-family: var(--font-mono);
+        font-size: 0.58rem;
+        color: var(--text-dim);
+        background: var(--surface3);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        padding: 0.1rem 0.35rem;
+      }
+      .factor-bar-wrap {
+        flex: 1;
+        background: var(--surface3);
+        border-radius: 9999px;
+        height: 7px;
+        overflow: hidden;
+      }
+      .factor-bar-fill {
+        height: 100%;
+        border-radius: 9999px;
+        transition: width 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      .factor-score-num {
+        font-family: var(--font-mono);
+        font-size: 0.78rem;
+        font-weight: 700;
+        min-width: 28px;
+        text-align: right;
+        flex-shrink: 0;
+      }
+      .factor-details {
+        font-size: 0.72rem;
+        color: var(--text-dim);
+        margin-top: 0.1rem;
+        margin-left: 195px;
+        line-height: 1.5;
+        padding-left: 0.5rem;
+      }
+
+      /* Keywords grid */
+      .ats-kw-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 0.75rem;
+      }
+      .kw-col {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 0.9rem 1rem;
+      }
+      .kw-col-hdr {
+        font-family: var(--font-mono);
+        font-size: 0.62rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        margin-bottom: 0.6rem;
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+      }
+      .kw-col-hdr.matched {
+        color: var(--green);
+      }
+      .kw-col-hdr.missing {
+        color: var(--red);
+      }
+      .kw-col-hdr.bonus {
+        color: var(--accent);
+      }
+      .kw-count {
+        font-weight: 400;
+        opacity: 0.7;
+      }
+      .kw-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.3rem;
+      }
+      .kw-chip {
+        font-family: var(--font-mono);
+        font-size: 0.62rem;
+        border-radius: 4px;
+        padding: 0.2rem 0.5rem;
+        background: var(--surface3);
+        border: 1px solid var(--border);
+        color: var(--text-muted);
+      }
+      .kw-chip.matched {
+        background: var(--green-soft);
+        border-color: rgba(34, 197, 94, 0.28);
+        color: var(--green);
+      }
+      .kw-chip.missing {
+        background: var(--red-soft);
+        border-color: rgba(239, 68, 68, 0.28);
+        color: var(--red);
+      }
+      .kw-chip.bonus {
+        background: var(--accent-soft);
+        border-color: rgba(16, 185, 129, 0.28);
+        color: var(--accent);
+      }
+
+      /* Analysis cards */
+      .ats-analysis-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.75rem;
+      }
+      .ats-analysis-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 1rem 1.1rem;
+      }
+      .ats-analysis-card-hdr {
+        font-family: var(--font-mono);
+        font-size: 0.62rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        margin-bottom: 0.65rem;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+      }
+      .ats-analysis-card.strong .ats-analysis-card-hdr {
+        color: var(--green);
+      }
+      .ats-analysis-card.weak .ats-analysis-card-hdr {
+        color: var(--red);
+      }
+      .ats-analysis-card.add .ats-analysis-card-hdr {
+        color: var(--accent);
+      }
+      .ats-analysis-card.change .ats-analysis-card-hdr {
+        color: var(--amber);
+      }
+      .ats-analysis-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.45rem;
+      }
+      .ats-analysis-list li {
+        font-size: 0.78rem;
+        color: var(--text-muted);
+        line-height: 1.5;
+        padding-left: 0.9rem;
+        position: relative;
+      }
+      .ats-analysis-list li::before {
+        content: "·";
+        position: absolute;
+        left: 0;
+        color: var(--text-dim);
+        font-weight: 700;
+      }
+      .ats-analysis-card.strong .ats-analysis-list li::before {
+        color: var(--green);
+      }
+      .ats-analysis-card.weak .ats-analysis-list li::before {
+        color: var(--red);
+      }
+      .ats-analysis-card.add .ats-analysis-list li::before {
+        color: var(--accent);
+      }
+      .ats-analysis-card.change .ats-analysis-list li::before {
+        color: var(--amber);
+      }
+
+      /* ATS view responsive */
+      @media (max-width: 720px) {
+        .ats-top-row {
+          flex-direction: column;
+        }
+        .ats-kw-grid {
+          grid-template-columns: 1fr;
+        }
+        .ats-analysis-grid {
+          grid-template-columns: 1fr;
+        }
+        .factor-details {
+          margin-left: 0;
+        }
+      }
     </style>
   </head>
   <body>
@@ -1415,23 +1681,30 @@
       <header class="header">
         <div class="logo">
           <div class="logo-icon">✦</div>
-          <span class="logo-text">resume<span>/</span>tailor</span>
+          <span class="logo-text">R<span>AMP</span></span>
         </div>
         <div class="header-right">
           <div class="view-tabs">
             <button
               class="view-tab active"
+              id="tab-ats"
+              onclick="switchView('ats')"
+            >
+              ATS Match
+            </button>
+            <button
+              class="view-tab"
               id="tab-tailor"
               onclick="switchView('tailor')"
             >
-              Tailor
+              Refine
             </button>
             <button
               class="view-tab"
               id="tab-history"
               onclick="switchView('history')"
             >
-              History
+              Runs
               <span
                 class="history-count"
                 id="history-count"
@@ -1447,7 +1720,7 @@
       </header>
 
       <!-- ── TAILOR VIEW ── -->
-      <div id="view-tailor">
+      <div id="view-tailor" style="display: none">
         <div class="app-layout">
           <!-- LEFT COLUMN: inputs -->
           <div class="col-left">
@@ -1823,7 +2096,7 @@
                 id="run-btn"
                 onclick="runTailor()"
               >
-                Tailor Resume →
+                Refine Resume →
               </button>
               <button
                 class="btn btn-danger cancel-btn"
@@ -1916,7 +2189,7 @@
                       resume_tailored.docx
                     </div>
                     <div class="dl-sub">
-                      Original formatting preserved · content tailored to JD
+                      Original formatting preserved · content refined to JD
                     </div>
                   </div>
                 </div>
@@ -1949,9 +2222,289 @@
         <div id="history-list" class="history-list"></div>
         <div id="history-empty" class="history-empty">
           <div class="history-empty-icon">📂</div>
-          <p>No runs yet. Tailor a resume to see your history here.</p>
+          <p>No runs yet. Refine a resume to see your history here.</p>
         </div>
       </div>
+
+      <!-- ── ATS SCORE VIEW ── -->
+      <div id="view-ats">
+        <!-- Self-contained provider config -->
+        <div class="panel-card">
+          <div class="panel-label">Provider</div>
+          <div class="ats-cfg-row">
+            <select
+              id="ats-provider-select"
+              onchange="setATSProvider(this.value)"
+            >
+              <optgroup label="Local">
+                <option value="lmstudio">LM Studio</option>
+                <option value="ollama">Ollama</option>
+              </optgroup>
+              <optgroup label="Cloud">
+                <option value="openai">OpenAI</option>
+                <option value="anthropic">Anthropic</option>
+                <option value="gemini">Gemini</option>
+                <option value="groq">Groq</option>
+                <option value="openrouter">OpenRouter</option>
+                <option value="mistral">Mistral</option>
+              </optgroup>
+              <optgroup label="Advanced">
+                <option value="custom">Custom</option>
+              </optgroup>
+            </select>
+            <div
+              id="ats-url-wrap"
+              style="display: none; flex: 1; min-width: 200px"
+            >
+              <input
+                type="text"
+                id="ats-url"
+                placeholder="http://localhost:1234"
+                oninput="saveATSCfg()"
+                style="
+                  font-family: var(--font-mono);
+                  font-size: 0.78rem;
+                  width: 100%;
+                "
+              />
+            </div>
+            <div
+              id="ats-key-wrap"
+              style="
+                display: none;
+                flex: 1;
+                min-width: 200px;
+                position: relative;
+              "
+            >
+              <input
+                type="password"
+                id="ats-key"
+                placeholder="Paste API key..."
+                oninput="saveATSCfg()"
+                style="width: 100%; padding-right: 2.5rem"
+              />
+              <button
+                class="btn btn-ghost"
+                style="
+                  position: absolute;
+                  right: 0.3rem;
+                  top: 50%;
+                  transform: translateY(-50%);
+                  padding: 0.15rem 0.4rem;
+                  font-size: 0.7rem;
+                "
+                onclick="toggleATSKeyVis()"
+              >
+                👁
+              </button>
+            </div>
+            <input
+              type="text"
+              id="ats-model-input"
+              placeholder="Model name (e.g. qwen3-8b)"
+              oninput="saveATSCfg()"
+              style="
+                font-family: var(--font-mono);
+                font-size: 0.78rem;
+                flex: 1.5;
+                min-width: 150px;
+              "
+            />
+          </div>
+        </div>
+
+        <!-- Job Description -->
+        <div class="panel-card" style="margin-top: 1rem">
+          <div class="panel-label">Job Description</div>
+          <div style="display: flex; gap: 0.4rem; margin-bottom: 0.5rem">
+            <input
+              type="text"
+              id="ats-jd-url"
+              placeholder="Paste job posting URL to auto-extract..."
+              style="flex: 1; font-family: var(--font-mono); font-size: 0.72rem"
+            />
+            <button
+              class="btn btn-ghost"
+              onclick="extractJdFromUrlForATS()"
+              id="ats-extract-url-btn"
+            >
+              Extract
+            </button>
+            <button
+              class="btn btn-ghost"
+              onclick="copyJDToATS()"
+              title="Copy job description from the Refine tab"
+            >
+              Use Refine JD
+            </button>
+          </div>
+          <textarea
+            id="ats-jd-text"
+            placeholder="Paste the full job description here..."
+            style="min-height: 220px; resize: vertical"
+          ></textarea>
+        </div>
+
+        <!-- Run -->
+        <div class="run-btn-container" style="margin-top: 1rem">
+          <button
+            class="btn btn-primary btn-run"
+            id="ats-run-btn"
+            onclick="runATS()"
+          >
+            Analyze Match →
+          </button>
+          <button
+            class="btn btn-danger cancel-btn"
+            id="ats-cancel-btn"
+            onclick="cancelATS()"
+            style="display: none"
+          >
+            Cancel
+          </button>
+        </div>
+
+        <!-- Progress -->
+        <div class="progress-wrap" id="ats-progress-wrap">
+          <div id="ats-simple-progress" style="display: none">
+            <div class="progress-simple">
+              <span class="spinner"></span>
+              <span id="ats-progress-label-text"
+                >Analyzing resume against JD...</span
+              >
+            </div>
+          </div>
+          <div class="progress-bar-track">
+            <div class="progress-bar-fill" id="ats-progress-bar-fill"></div>
+          </div>
+        </div>
+
+        <!-- Error -->
+        <div class="error-wrap" id="ats-error-wrap">
+          <div class="error-card">
+            <div class="error-icon">⚠</div>
+            <div class="error-text" style="flex: 1">
+              <strong>Something went wrong</strong>
+              <p id="ats-error-msg"></p>
+              <p
+                id="ats-error-hint"
+                style="
+                  margin-top: 0.3rem;
+                  font-size: 0.72rem;
+                  color: var(--text-dim);
+                  display: none;
+                "
+              ></p>
+              <div
+                id="ats-error-raw-wrap"
+                style="display: none; margin-top: 0.6rem"
+              >
+                <button
+                  class="btn btn-ghost"
+                  style="
+                    font-size: 0.65rem;
+                    padding: 0.3rem 0.6rem;
+                    margin-bottom: 0.5rem;
+                  "
+                  onclick="toggleATSRaw()"
+                >
+                  ▾ Show raw model output
+                </button>
+                <pre
+                  id="ats-error-raw"
+                  style="
+                    display: none;
+                    background: var(--surface3);
+                    border: 1px solid var(--border);
+                    border-radius: var(--radius-sm);
+                    padding: 0.75rem;
+                    font-family: var(--font-mono);
+                    font-size: 0.65rem;
+                    line-height: 1.6;
+                    color: var(--text-muted);
+                    white-space: pre-wrap;
+                    overflow-x: auto;
+                    max-height: 240px;
+                    overflow-y: auto;
+                  "
+                ></pre>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Results -->
+        <div id="ats-results" style="display: none">
+          <!-- Score gauge + overall summary -->
+          <div class="ats-top-row">
+            <div class="ats-score-card">
+              <svg
+                id="ats-score-svg"
+                width="140"
+                height="140"
+                viewBox="0 0 120 120"
+              ></svg>
+              <div class="ats-score-label" id="ats-score-label">—</div>
+            </div>
+            <div class="ats-summary-card">
+              <div class="panel-label">Overall Assessment</div>
+              <p class="ats-summary-text" id="ats-summary-text"></p>
+            </div>
+          </div>
+
+          <!-- Scoring breakdown -->
+          <div class="section">
+            <div class="label">Score Breakdown</div>
+            <div
+              class="card"
+              id="ats-factors"
+              style="padding: 1.25rem 1.5rem"
+            ></div>
+          </div>
+
+          <!-- Keywords -->
+          <div class="section">
+            <div class="label">Keywords</div>
+            <div class="ats-kw-grid" id="ats-keywords"></div>
+          </div>
+
+          <!-- Analysis -->
+          <div class="section" style="margin-bottom: 2rem">
+            <div class="label">Resume Analysis</div>
+            <div class="ats-analysis-grid" id="ats-analysis"></div>
+          </div>
+
+          <div class="section">
+            <div class="label">Export</div>
+            <div
+              style="
+                display: flex;
+                gap: 0.5rem;
+                align-items: center;
+                margin-top: 0.5rem;
+              "
+            >
+              <button
+                class="btn btn-outline"
+                id="export-ats-json"
+                onclick="exportATSJSON()"
+              >
+                Export JSON (recommended)
+              </button>
+              <button
+                class="btn btn-ghost"
+                id="export-ats-md"
+                onclick="exportATSMd()"
+              >
+                Export Markdown
+              </button>
+            </div>
+          </div>
+        </div>
+        <!-- /ats-results -->
+      </div>
+      <!-- /view-ats -->
     </div>
     <!-- /container -->
 
@@ -1960,6 +2513,7 @@
       let resumeReady = hasDefault || !!localStorage.getItem("rt_resume_b64");
       let currentProvider = localStorage.getItem("rt_provider") || "lmstudio";
       let currentAbortController = null;
+      let lastATSResponse = null;
 
       // ── BOOT ──────────────────────────────────────────────────────────────────
       document.addEventListener("DOMContentLoaded", () => {
@@ -1968,6 +2522,9 @@
         setupDrop();
         loadAdvancedConfig();
         loadHistoryCount();
+        // Restore last active tab
+        const savedTab = localStorage.getItem("rt_tab") || "ats";
+        switchView(savedTab);
         // Wire advanced config inputs to auto-save (remove old listeners first to prevent accumulation)
         [
           "cfg-temp",
@@ -1992,13 +2549,20 @@
           v === "tailor" ? "" : "none";
         document.getElementById("view-history").style.display =
           v === "history" ? "" : "none";
+        document.getElementById("view-ats").style.display =
+          v === "ats" ? "" : "none";
         document
           .getElementById("tab-tailor")
           .classList.toggle("active", v === "tailor");
         document
           .getElementById("tab-history")
           .classList.toggle("active", v === "history");
+        document
+          .getElementById("tab-ats")
+          .classList.toggle("active", v === "ats");
+        localStorage.setItem("rt_tab", v);
         if (v === "history") renderHistory();
+        if (v === "ats") syncATSConfig();
       }
 
       // ── PROVIDER SYSTEM ───────────────────────────────────────────────────────
@@ -2581,10 +3145,10 @@
           const pLabel = (PROVIDER_META[provider] || {}).label || provider;
           document.getElementById("progress-label-text").textContent =
             `Sending to ${pLabel} — this may take a moment...`;
-          btn.textContent = "⟳ Tailoring...";
+          btn.textContent = "⟳ Refining...";
         } else {
           prog.className = "progress-wrap";
-          btn.textContent = "Tailor Resume →";
+          btn.textContent = "Refine Resume →";
         }
       }
 
@@ -2611,7 +3175,9 @@
       function _buildNewTitleLine(originalLine, suggestedTitle) {
         for (const sep of [" | ", " – ", " — ", " - ", ", "]) {
           if (originalLine.includes(sep)) {
-            return suggestedTitle + originalLine.slice(originalLine.indexOf(sep));
+            return (
+              suggestedTitle + originalLine.slice(originalLine.indexOf(sep))
+            );
           }
         }
         return suggestedTitle;
@@ -2674,7 +3240,9 @@
           const fullSection = _normStr(g.section);
           let matchedSuggestion = null;
           for (const [key, s] of suggestionByTitle) {
-            const candidates = titlePart ? [titlePart, fullSection] : [fullSection];
+            const candidates = titlePart
+              ? [titlePart, fullSection]
+              : [fullSection];
             for (const candidate of candidates) {
               if (
                 candidate === key ||
@@ -2695,7 +3263,10 @@
 
           // Inline role suggestion strip (between header and change cards)
           if (matchedSuggestion) {
-            const newLine = _buildNewTitleLine(matchedSuggestion.original_title, matchedSuggestion.suggested_title);
+            const newLine = _buildNewTitleLine(
+              matchedSuggestion.original_title,
+              matchedSuggestion.suggested_title,
+            );
             const strip = document.createElement("div");
             strip.className = "role-suggestion-inline";
             strip.dataset.originalTitle = matchedSuggestion.original_title;
@@ -2758,7 +3329,12 @@
         btn.disabled = true;
         btn.textContent = "…";
 
-        _roleAccepted.add(JSON.stringify({ original_title: originalTitle, new_title: newTitle }));
+        _roleAccepted.add(
+          JSON.stringify({
+            original_title: originalTitle,
+            new_title: newTitle,
+          }),
+        );
 
         const changes = Array.from(_roleAccepted).map((s) => JSON.parse(s));
 
@@ -2785,12 +3361,19 @@
           btn.classList.add("applied");
           btn.disabled = true;
           // Hide the "Keep" button since choice is made
-          const keepBtn = btn.closest(".rsi-actions").querySelector(".btn-keep-role");
+          const keepBtn = btn
+            .closest(".rsi-actions")
+            .querySelector(".btn-keep-role");
           if (keepBtn) keepBtn.style.display = "none";
         } catch (err) {
           btn.disabled = false;
           btn.textContent = "Use →";
-          _roleAccepted.delete(JSON.stringify({ original_title: originalTitle, new_title: newTitle }));
+          _roleAccepted.delete(
+            JSON.stringify({
+              original_title: originalTitle,
+              new_title: newTitle,
+            }),
+          );
           showError("Failed to apply role change: " + err.message);
         }
       }
@@ -3058,6 +3641,389 @@
           .replaceAll("&", "&amp;")
           .replaceAll("<", "&lt;")
           .replaceAll(">", "&gt;");
+      }
+
+      // ── ATS SCORE ─────────────────────────────────────────────────────────────
+      let currentATSAbortController = null;
+
+      function syncATSConfig() {
+        const p = currentProvider;
+        const sel = document.getElementById("ats-provider-select");
+        if (sel) sel.value = p;
+        setATSProvider(p);
+      }
+
+      function setATSProvider(p) {
+        const meta = PROVIDER_META[p] || {};
+        const urlWrap = document.getElementById("ats-url-wrap");
+        const keyWrap = document.getElementById("ats-key-wrap");
+        if (urlWrap) urlWrap.style.display = meta.hasUrl ? "" : "none";
+        if (keyWrap) keyWrap.style.display = meta.hasKey ? "" : "none";
+        if (meta.hasUrl) {
+          const saved =
+            localStorage.getItem("rt_url_" + p) || meta.defaultUrl || "";
+          const el = document.getElementById("ats-url");
+          if (el) el.value = saved;
+        }
+        if (meta.hasKey) {
+          const saved = localStorage.getItem("rt_key_" + p) || "";
+          const el = document.getElementById("ats-key");
+          if (el) el.value = saved;
+        }
+        const savedModel =
+          localStorage.getItem("rt_model_" + p) || selectedProviderModel || "";
+        const modelEl = document.getElementById("ats-model-input");
+        if (modelEl) modelEl.value = savedModel;
+      }
+
+      function saveATSCfg() {
+        const p =
+          document.getElementById("ats-provider-select")?.value ||
+          currentProvider;
+        const meta = PROVIDER_META[p] || {};
+        if (meta.hasKey) {
+          const key = document.getElementById("ats-key")?.value.trim();
+          if (key) localStorage.setItem("rt_key_" + p, key);
+        }
+        if (meta.hasUrl) {
+          const url = document.getElementById("ats-url")?.value.trim();
+          if (url) localStorage.setItem("rt_url_" + p, url);
+        }
+        const model = document.getElementById("ats-model-input")?.value.trim();
+        if (model) {
+          localStorage.setItem("rt_model_" + p, model);
+          selectedProviderModel = model;
+        }
+      }
+
+      function toggleATSKeyVis() {
+        const inp = document.getElementById("ats-key");
+        if (inp) inp.type = inp.type === "password" ? "text" : "password";
+      }
+
+      function _getATSProviderConfig() {
+        const p =
+          document.getElementById("ats-provider-select")?.value ||
+          currentProvider;
+        const meta = PROVIDER_META[p] || {};
+        const api_key = meta.hasKey
+          ? document.getElementById("ats-key")?.value.trim() ||
+            localStorage.getItem("rt_key_" + p) ||
+            ""
+          : "";
+        const lm_url = meta.hasUrl
+          ? document.getElementById("ats-url")?.value.trim() || ""
+          : "";
+        const model =
+          document.getElementById("ats-model-input")?.value.trim() || "";
+        return { provider: p, model, api_key, lm_url };
+      }
+
+      async function extractJdFromUrlForATS() {
+        const url = document.getElementById("ats-jd-url").value.trim();
+        if (!url) return;
+        const btn = document.getElementById("ats-extract-url-btn");
+        btn.disabled = true;
+        btn.textContent = "Extracting...";
+        hideATSError();
+        try {
+          const resp = await fetch("/extract-jd", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url }),
+          });
+          const data = await resp.json();
+          if (data.error) {
+            showATSError(data.error);
+            return;
+          }
+          document.getElementById("ats-jd-text").value = data.text;
+        } catch (e) {
+          showATSError("Failed to extract JD from URL.");
+        } finally {
+          btn.disabled = false;
+          btn.textContent = "Extract";
+        }
+      }
+
+      function copyJDToATS() {
+        const jd = document.getElementById("jd-text")?.value || "";
+        document.getElementById("ats-jd-text").value = jd;
+      }
+
+      async function runATS() {
+        hideATSError();
+        const jd = document.getElementById("ats-jd-text").value.trim();
+        if (!jd) {
+          showATSError("Paste a job description first.");
+          return;
+        }
+        if (!resumeReady) {
+          showATSError("Upload a resume first — use the Refine tab to upload.");
+          return;
+        }
+        const cfg = _getATSProviderConfig();
+        if (!cfg.model) {
+          showATSError("Enter a model name in the Provider field above.");
+          return;
+        }
+        setATSBusy(true, cfg.provider);
+        currentATSAbortController = new AbortController();
+        document.getElementById("ats-results").style.display = "none";
+        try {
+          const r = await fetch("/ats-score", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ...cfg, jd_text: jd }),
+            signal: currentATSAbortController.signal,
+          });
+          const d = await r.json();
+          if (!r.ok || d.error) {
+            showATSError(
+              d.error || "Unexpected error.",
+              d.hint || "",
+              d.raw_preview || "",
+            );
+          } else {
+            renderATSResults(d);
+          }
+        } catch (e) {
+          if (e.name !== "AbortError")
+            showATSError("Network error: " + e.message);
+        } finally {
+          setATSBusy(false);
+        }
+      }
+
+      function cancelATS() {
+        if (currentATSAbortController) currentATSAbortController.abort();
+      }
+
+      function setATSBusy(on, provider) {
+        const btn = document.getElementById("ats-run-btn");
+        const cancelBtn = document.getElementById("ats-cancel-btn");
+        const prog = document.getElementById("ats-progress-wrap");
+        btn.disabled = on;
+        cancelBtn.style.display = on ? "inline-flex" : "none";
+        if (on) {
+          prog.className = "progress-wrap show";
+          const sp = document.getElementById("ats-simple-progress");
+          if (sp) sp.style.display = "";
+          const pLabel = (PROVIDER_META[provider] || {}).label || provider;
+          const textEl = document.getElementById("ats-progress-label-text");
+          if (textEl)
+            textEl.textContent = `Analyzing with ${pLabel} — this may take a moment...`;
+          btn.textContent = "⟳ Analyzing...";
+        } else {
+          prog.className = "progress-wrap";
+          btn.textContent = "Analyze Match →";
+        }
+      }
+
+      function _atsScoreColor(score) {
+        if (score >= 80) return "#22c55e";
+        if (score >= 60) return "#f59e0b";
+        return "#ef4444";
+      }
+
+      function _atsScoreLabel(score) {
+        if (score >= 80) return "Strong Match";
+        if (score >= 65) return "Good Match";
+        if (score >= 50) return "Partial Match";
+        return "Weak Match";
+      }
+
+      function renderATSResults(d) {
+        lastATSResponse = d;
+        const score = typeof d.ats_score === "number" ? d.ats_score : 0;
+        const color = _atsScoreColor(score);
+        const circ = 2 * Math.PI * 52; // circumference for r=52
+
+        // Score gauge SVG
+        document.getElementById("ats-score-svg").innerHTML = `
+          <circle cx="60" cy="60" r="52" fill="none"
+            stroke="rgba(255,255,255,0.05)" stroke-width="10"/>
+          <circle cx="60" cy="60" r="52" fill="none"
+            stroke="${color}" stroke-width="10"
+            stroke-dasharray="${(score / 100) * circ} ${circ}"
+            stroke-linecap="round"
+            transform="rotate(-90 60 60)"/>
+          <text x="60" y="55" text-anchor="middle"
+            font-family="JetBrains Mono, monospace"
+            font-size="28" font-weight="700" fill="${color}">${score}</text>
+          <text x="60" y="72" text-anchor="middle"
+            font-family="DM Sans, sans-serif"
+            font-size="10" fill="rgba(255,255,255,0.4)">/100</text>`;
+
+        const labelEl = document.getElementById("ats-score-label");
+        labelEl.textContent = _atsScoreLabel(score);
+        labelEl.style.color = color;
+
+        // Overall summary
+        document.getElementById("ats-summary-text").textContent =
+          d.analysis?.overall_summary || "No summary available.";
+
+        // Scoring factors
+        const factorsEl = document.getElementById("ats-factors");
+        const factors = Array.isArray(d.scoring_factors)
+          ? d.scoring_factors
+          : [];
+        factorsEl.innerHTML = `<div class="factor-list">${factors
+          .map((f) => {
+            const fc = _atsScoreColor(f.score);
+            return `
+            <div>
+              <div class="factor-row">
+                <span class="factor-name">${esc(f.factor)}<span class="factor-weight-tag">${f.weight}%</span></span>
+                <div class="factor-bar-wrap">
+                  <div class="factor-bar-fill" style="width:${f.score}%;background:${fc}"></div>
+                </div>
+                <span class="factor-score-num" style="color:${fc}">${f.score}</span>
+              </div>
+              ${f.details ? `<div class="factor-details">${esc(f.details)}</div>` : ""}
+            </div>`;
+          })
+          .join("")}</div>`;
+
+        // Keywords
+        const kw = d.keywords || {};
+        document.getElementById("ats-keywords").innerHTML = `
+          <div class="kw-col">
+            <div class="kw-col-hdr matched">✓ Matched <span class="kw-count">(${(kw.matched || []).length})</span></div>
+            <div class="kw-chips">${(kw.matched || []).map((k) => `<span class="kw-chip matched">${esc(k)}</span>`).join("")}</div>
+          </div>
+          <div class="kw-col">
+            <div class="kw-col-hdr missing">✗ Missing <span class="kw-count">(${(kw.missing || []).length})</span></div>
+            <div class="kw-chips">${(kw.missing || []).map((k) => `<span class="kw-chip missing">${esc(k)}</span>`).join("")}</div>
+          </div>
+          <div class="kw-col">
+            <div class="kw-col-hdr bonus">+ Bonus <span class="kw-count">(${(kw.bonus || []).length})</span></div>
+            <div class="kw-chips">${(kw.bonus || []).map((k) => `<span class="kw-chip bonus">${esc(k)}</span>`).join("")}</div>
+          </div>`;
+
+        // Analysis cards
+        const an = d.analysis || {};
+        const analysisCards = [
+          {
+            key: "strong_points",
+            cls: "strong",
+            icon: "💪",
+            label: "Strong Points",
+          },
+          { key: "weak_points", cls: "weak", icon: "⚠", label: "Weak Points" },
+          { key: "what_to_add", cls: "add", icon: "＋", label: "What to Add" },
+          {
+            key: "what_to_change",
+            cls: "change",
+            icon: "✏",
+            label: "What to Change",
+          },
+        ];
+        document.getElementById("ats-analysis").innerHTML = analysisCards
+          .map(
+            (c) => `
+            <div class="ats-analysis-card ${c.cls}">
+              <div class="ats-analysis-card-hdr">${c.icon} ${c.label}</div>
+              <ul class="ats-analysis-list">
+                ${
+                  (an[c.key] || []).map((p) => `<li>${esc(p)}</li>`).join("") ||
+                  '<li style="color:var(--text-dim)">None identified</li>'
+                }
+              </ul>
+            </div>`,
+          )
+          .join("");
+
+        document.getElementById("ats-results").style.display = "";
+      }
+
+      function _downloadFile(filename, content, mime) {
+        const blob = new Blob([content], {
+          type: mime || "application/octet-stream",
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1500);
+      }
+
+      function exportATSJSON() {
+        if (!lastATSResponse) {
+          alert("No ATS analysis available to export.");
+          return;
+        }
+        const data = JSON.stringify(lastATSResponse);
+        const ts = new Date().toISOString().replace(/[:.]/g, "-");
+        _downloadFile(
+          `ats_analysis_${ts}.json`,
+          data,
+          "application/json;charset=utf-8",
+        );
+      }
+
+      function exportATSMd() {
+        if (!lastATSResponse) {
+          alert("No ATS analysis available to export.");
+          return;
+        }
+        const d = lastATSResponse;
+        const score = typeof d.ats_score === "number" ? d.ats_score : "—";
+        const label = typeof score === "number" ? _atsScoreLabel(score) : "";
+        let md = `# ATS Analysis\n\n**Score:** ${score} ${label}\n\n`;
+        md += `## Overall Summary\n\n${d.analysis?.overall_summary || "No summary available."}\n\n`;
+        md += `## Scoring Factors\n\n`;
+        (d.scoring_factors || []).forEach((f) => {
+          md += `- ${f.factor} (${f.weight}%): ${f.score}\n`;
+          if (f.details) md += `  - ${f.details}\n`;
+        });
+        md += `\n## Keywords\n\n`;
+        md += `- Matched: ${(d.keywords?.matched || []).join(", ") || "None"}\n`;
+        md += `- Missing: ${(d.keywords?.missing || []).join(", ") || "None"}\n`;
+        md += `- Bonus: ${(d.keywords?.bonus || []).join(", ") || "None"}\n\n`;
+        md += `## Strong Points\n\n${(d.analysis?.strong_points || []).map((x) => `- ${x}`).join("\n") || "None"}\n\n`;
+        md += `## Weak Points\n\n${(d.analysis?.weak_points || []).map((x) => `- ${x}`).join("\n") || "None"}\n\n`;
+        md += `## What to Add\n\n${(d.analysis?.what_to_add || []).map((x) => `- ${x}`).join("\n") || "None"}\n\n`;
+        md += `## What to Change\n\n${(d.analysis?.what_to_change || []).map((x) => `- ${x}`).join("\n") || "None"}\n\n`;
+        const ts = new Date().toISOString().replace(/[:.]/g, "-");
+        _downloadFile(
+          `ats_analysis_${ts}.md`,
+          md,
+          "text/markdown;charset=utf-8",
+        );
+      }
+
+      function showATSError(msg, hint = "", raw = "") {
+        document.getElementById("ats-error-msg").textContent = msg;
+        const hintEl = document.getElementById("ats-error-hint");
+        hintEl.textContent = hint;
+        hintEl.style.display = hint ? "" : "none";
+        const rawWrap = document.getElementById("ats-error-raw-wrap");
+        const rawEl = document.getElementById("ats-error-raw");
+        if (raw) {
+          rawEl.textContent = raw;
+          rawWrap.style.display = "";
+        } else {
+          rawWrap.style.display = "none";
+        }
+        document.getElementById("ats-error-wrap").className = "error-wrap show";
+      }
+
+      function hideATSError() {
+        document.getElementById("ats-error-wrap").className = "error-wrap";
+      }
+
+      function toggleATSRaw() {
+        const el = document.getElementById("ats-error-raw");
+        const btn = el.previousElementSibling;
+        const open = el.style.display !== "none";
+        el.style.display = open ? "none" : "block";
+        btn.textContent = open
+          ? "▾ Show raw model output"
+          : "▴ Hide raw model output";
       }
     </script>
   </body>

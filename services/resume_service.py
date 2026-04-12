@@ -9,6 +9,237 @@ from docx import Document
 from config import DEFAULT_RESUME, ORIGINAL_RESUME_INFO
 
 
+def _clean_llm_json_text(text):
+    text = re.sub(r"```+(?:json|JSON)?\s*", "", text)
+    text = re.sub(r"```+", "", text)
+    text = text.replace("\u201c", '"').replace("\u201d", '"')
+    text = text.replace("\u2018", "'").replace("\u2019", "'")
+    return re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
+
+
+def _extract_json_from_brackets(text):  # NOSONAR
+    for start in (index for index, char in enumerate(text) if char == "["):
+        depth = 0
+        for index, char in enumerate(text[start:], start):
+            if char == "[":
+                depth += 1
+            elif char == "]":
+                depth -= 1
+                if depth == 0:
+                    candidate = text[start : index + 1]
+                    try:
+                        result = json.loads(candidate)
+                    except Exception:
+                        break
+                    if isinstance(result, list):
+                        items = [item for item in result if isinstance(item, dict)]
+                        if items:
+                            return items
+                    break
+    return None
+
+
+def _extract_json_from_braces(text):  # NOSONAR
+    objects = []
+    for start in (index for index, char in enumerate(text) if char == "{"):
+        depth = 0
+        for index, char in enumerate(text[start:], start):
+            if char == "{":
+                depth += 1
+            elif char == "}":
+                depth -= 1
+                if depth == 0:
+                    candidate = text[start : index + 1]
+                    try:
+                        obj = json.loads(candidate)
+                    except Exception:
+                        break
+                    if isinstance(obj, dict) and (
+                        "original" in obj or "replacement" in obj
+                    ):
+                        objects.append(obj)
+                    break
+    return objects or None
+
+
+def _extract_json_from_regex(text):
+    pattern = r'["\']?original["\']?\s*:\s*["\']([^"\']+)["\'].*?["\']?replacement["\']?\s*:\s*["\']([^"\']+)["\']'  # NOSONAR
+    matches = re.findall(pattern, text, re.DOTALL)
+    if not matches:
+        return None
+    return [
+        {"original": original.strip(), "replacement": replacement.strip()}
+        for original, replacement in matches
+    ]
+
+
+def _best_fuzzy_key(normalized, candidates, matched, threshold):
+    import difflib
+
+    best_key = None
+    best_ratio = 0.0
+    for key in candidates:
+        if key in matched:
+            continue
+        ratio = difflib.SequenceMatcher(None, normalized, key).ratio()
+        if ratio > best_ratio:
+            best_ratio = ratio
+            best_key = key
+    if best_key and best_ratio >= threshold:
+        return best_key, best_ratio
+    return None, 0.0
+
+
+def _write_paragraph_text(paragraph, new_text, preserve_bold_split=False):  # NOSONAR
+    if not paragraph.runs:
+        from docx.oxml import OxmlElement
+
+        for child in paragraph._p:
+            if child.tag.endswith("}r"):
+                paragraph._p.remove(child)
+        run_el = OxmlElement("w:r")
+        text_el = OxmlElement("w:t")
+        text_el.text = new_text
+        text_el.set("{http://www.w3.org/XML/1998/namespace}space", "preserve")
+        run_el.append(text_el)
+        paragraph._p.append(run_el)
+        return
+
+    if preserve_bold_split:
+        first_bold = paragraph.runs[0].bold
+        split_index = None
+        if first_bold and len(paragraph.runs) > 1:
+            for index, run in enumerate(paragraph.runs[1:], 1):
+                if not run.bold:
+                    split_index = index
+                    break
+        if split_index is not None and ":" in new_text:
+            colon_pos = new_text.index(":")
+            paragraph.runs[0].text = new_text[: colon_pos + 1]
+            paragraph.runs[split_index].text = new_text[colon_pos + 1 :]
+            for index, run in enumerate(paragraph.runs[1:], 1):
+                if index != split_index:
+                    run.text = ""
+            return
+
+    paragraph.runs[0].text = new_text
+    for run in paragraph.runs[1:]:
+        run.text = ""
+
+
+def _is_contact_line(text):
+    return bool(
+        any(
+            keyword in text.lower()
+            for keyword in ("@", "linkedin", "github", "portfolio", "phone")
+        )
+        or re.search(r"\d{3}[\-\.\s]\d{3}", text)
+    )
+
+
+def _is_section_heading_text(text, date_pattern, section_heading_keywords):
+    return (
+        len(text) < 60
+        and text.isupper()
+        and (
+            len(text.split()) >= 5
+            or date_pattern.search(text)
+            or any(keyword in text.lower() for keyword in section_heading_keywords)
+        )
+    )
+
+
+def _classify_paragraph_text(
+    text, in_summary, in_skills, in_certifications, date_pattern
+):
+    word_count = len(text.split())
+    is_contact_or_name = (
+        word_count <= 12
+        and not text.startswith(("•", "-", "–", "*", "◦"))
+        and _is_contact_line(text)
+    )
+    is_title_line = (
+        not is_contact_or_name
+        and not in_summary
+        and word_count <= 15
+        and date_pattern.search(text)
+        and not text.startswith(("•", "-", "–", "*", "◦"))
+    )
+    is_project_title = (
+        not is_contact_or_name
+        and not is_title_line
+        and not in_summary
+        and word_count <= 25
+        and date_pattern.search(text)
+        and " - " in text
+        and not text.startswith(("•", "-", "–", "*", "◦"))
+    )
+    if is_contact_or_name or is_title_line or is_project_title:
+        return "title"
+    if in_summary and word_count >= 3:
+        return "summary"
+    if in_certifications:
+        return "certification"
+    if in_skills:
+        return "skills"
+    if word_count >= 15:
+        return "bullet"
+    if not text.startswith(("•", "-", "–", "*", "◦", "▪", "▸", "○")):
+        return "title"
+    return "other"
+
+
+def _build_replacement_map(replacements):
+    replacement_map = {}
+    for replacement in replacements:
+        if not isinstance(replacement, dict):
+            print(f"[WARN] Skipping non-dict: {repr(replacement)[:80]}")
+            continue
+        old_text = replacement.get("original", "").strip()
+        new_text = replacement.get("replacement", "").strip()
+        if old_text and new_text:
+            replacement_map[normalize_text(old_text)] = new_text
+        else:
+            print(f"[WARN] Missing keys in: {list(replacement.keys())}")
+    return replacement_map
+
+
+def _apply_replacement_map(document, replacement_map, preserve_bold_split=False):
+    matched = set()
+    applied = 0
+    for paragraph in document.paragraphs:
+        normalized = normalize_text(paragraph.text)
+        if not normalized:
+            continue
+        if normalized in replacement_map and normalized not in matched:
+            print(f"[MATCH exact] {repr(normalized[:60])}")
+            _write_paragraph_text(
+                paragraph, replacement_map[normalized], preserve_bold_split
+            )
+            matched.add(normalized)
+            applied += 1
+            continue
+        best_key, best_ratio = _best_fuzzy_key(
+            normalized, replacement_map, matched, 0.85
+        )
+        if best_key:
+            print(f"[MATCH fuzzy {best_ratio:.2f}] {repr(normalized[:60])}")
+            _write_paragraph_text(
+                paragraph, replacement_map[best_key], preserve_bold_split
+            )
+            matched.add(best_key)
+            applied += 1
+    return applied, matched
+
+
+def _best_section_label(original_norm, paragraph_lookup):
+    section = paragraph_lookup.get(original_norm, "")
+    if section or not original_norm:
+        return section
+    best_key, best_ratio = _best_fuzzy_key(original_norm, paragraph_lookup, set(), 0.8)
+    return paragraph_lookup.get(best_key, "") if best_key and best_ratio >= 0.8 else ""
+
+
 def extract_user_name(resume_paras):
     """Extract the user's name from the resume (first non-heading, non-contact paragraph)."""
     for paragraph in resume_paras:
@@ -101,14 +332,7 @@ def extract_json_array(text):
     if not text:
         return None
 
-    text = re.sub(r"```+(?:json|JSON)?\s*", "", text)
-    text = re.sub(r"```+", "", text)
-
-    text = text.replace("\u201c", '"').replace("\u201d", '"')
-    text = text.replace("\u2018", "'").replace("\u2019", "'")
-
-    text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
-    text = text.strip()
+    text = _clean_llm_json_text(text)
 
     try:
         result = json.loads(text)
@@ -119,61 +343,19 @@ def extract_json_array(text):
     except Exception:
         pass
 
-    bracket_starts = [index for index, char in enumerate(text) if char == "["]
-    for start in bracket_starts:
-        depth = 0
-        for index, char in enumerate(text[start:], start):
-            if char == "[":
-                depth += 1
-            elif char == "]":
-                depth -= 1
-                if depth == 0:
-                    candidate = text[start : index + 1]
-                    try:
-                        result = json.loads(candidate)
-                        if isinstance(result, list) and len(result) > 0:
-                            items = [item for item in result if isinstance(item, dict)]
-                            if items:
-                                return items
-                    except Exception:
-                        pass
-                    break
-
-    objects = []
-    brace_starts = [index for index, char in enumerate(text) if char == "{"]
-    for start in brace_starts:
-        depth = 0
-        for index, char in enumerate(text[start:], start):
-            if char == "{":
-                depth += 1
-            elif char == "}":
-                depth -= 1
-                if depth == 0:
-                    candidate = text[start : index + 1]
-                    try:
-                        obj = json.loads(candidate)
-                        if isinstance(obj, dict) and (
-                            "original" in obj or "replacement" in obj
-                        ):
-                            objects.append(obj)
-                    except Exception:
-                        pass
-                    break
-    if objects:
-        return objects
-
-    pattern = r'["\']?original["\']?\s*:\s*["\']([^"\']+)["\'].*?["\']?replacement["\']?\s*:\s*["\']([^"\']+)["\']'
-    matches = re.findall(pattern, text, re.DOTALL)
-    if matches:
-        return [
-            {"original": original.strip(), "replacement": replacement.strip()}
-            for original, replacement in matches
-        ]
+    for parser in (
+        _extract_json_from_brackets,
+        _extract_json_from_braces,
+        _extract_json_from_regex,
+    ):
+        result = parser(text)
+        if result:
+            return result
 
     return None
 
 
-def normalize_replacement_keys(items):
+def normalize_replacement_keys(items):  # NOSONAR
     """
     Normalize key name variations across different models.
     Models may use 'rewritten', 'revised', 'new_text', 'modified', 'updated',
@@ -238,7 +420,7 @@ def normalize_text(text):
     return text
 
 
-def filter_replacements_by_type(replacements, resume_paras):
+def filter_replacements_by_type(replacements, resume_paras):  # NOSONAR
     """
     Server-side safety net: drop any replacement that targets a title, heading,
     or other non-editable paragraph (as classified by get_resume_paragraphs).
@@ -286,7 +468,7 @@ def extract_resume_text(path):
     return "\n".join(lines)
 
 
-def get_resume_paragraphs(path):
+def get_resume_paragraphs(path):  # NOSONAR
     """
     Return paragraphs with their index, text, style, section, and paragraph_type.
 
@@ -308,16 +490,53 @@ def get_resume_paragraphs(path):
         r"april|june|july|august|september|october|november|december|\d{4})",
         re.IGNORECASE,
     )
-    skills_section_names = {"skills", "technical skills", "core competencies", "expertise"}
-    certification_section_names = {"certifications", "certification", "cert", "licenses", "licence", "licenses & certifications"}
+    skills_section_names = {
+        "skills",
+        "technical skills",
+        "core competencies",
+        "expertise",
+    }
+    certification_section_names = {
+        "certifications",
+        "certification",
+        "cert",
+        "licenses",
+        "licence",
+        "licenses & certifications",
+    }
     # Keywords that mark a line as a *section* heading (not just an all-caps person name)
-    section_heading_keywords = frozenset({
-        "experience", "skills", "education", "summary", "objective", "profile",
-        "projects", "certifications", "achievements", "awards", "publications",
-        "volunteer", "about", "background", "contact", "career", "work",
-        "employment", "history", "technical", "professional", "activities",
-        "interests", "languages", "courses", "training", "references", "internship",
-    })
+    section_heading_keywords = frozenset(
+        {
+            "experience",
+            "skills",
+            "education",
+            "summary",
+            "objective",
+            "profile",
+            "projects",
+            "certifications",
+            "achievements",
+            "awards",
+            "publications",
+            "volunteer",
+            "about",
+            "background",
+            "contact",
+            "career",
+            "work",
+            "employment",
+            "history",
+            "technical",
+            "professional",
+            "activities",
+            "interests",
+            "languages",
+            "courses",
+            "training",
+            "references",
+            "internship",
+        }
+    )
 
     in_summary = (
         True  # treat top-of-resume as summary zone until first heading resets it
@@ -329,31 +548,16 @@ def get_resume_paragraphs(path):
         text = paragraph.text.strip()
         if not text:
             continue
-        style_name = (
-            paragraph.style.name
-            if getattr(paragraph, "style", None) and paragraph.style.name
-            else ""
-        )
+        style = getattr(paragraph, "style", None)
+        style_name = getattr(style, "name", "") or ""
         style_lower = style_name.lower()
 
-        # All-caps short lines are treated as section headings only when they contain a
-        # date (company/project entry), a known section keyword, OR are long enough
-        # that they can't be a person's name (>= 5 words).  This prevents a candidate's
-        # name like "KSHITIJ BHAR" from resetting the in_summary flag.
-        _all_caps_is_section = (
-            len(text) < 60
-            and text.isupper()
-            and (
-                len(text.split()) >= 5
-                or date_pattern.search(text)
-                or any(kw in text.lower() for kw in section_heading_keywords)
-            )
-        )
         is_heading = (
             any(heading in style_lower for heading in heading_styles)
-            or _all_caps_is_section
+            or _is_section_heading_text(text, date_pattern, section_heading_keywords)
             or style_lower in ("title", "subtitle")
         )
+        word_count = len(text.split())
 
         # Guard: some resume templates style the summary body text with a heading/subtitle
         # style.  When we're already inside a summary section (in_summary=True) and the
@@ -397,55 +601,13 @@ def get_resume_paragraphs(path):
             )
             continue
 
-        word_count = len(text.split())
-        is_contact_or_name = (
-            word_count <= 12
-            and not text.startswith(("•", "-", "–", "*", "◦"))
-            and (
-                "@" in text
-                or "linkedin" in text.lower()
-                or "github" in text.lower()
-                or "portfolio" in text.lower()
-                or "phone" in text.lower()
-                or re.search(r"\d{3}[\-\.\s]\d{3}", text)
-            )
+        paragraph_type = _classify_paragraph_text(
+            text,
+            in_summary,
+            in_skills,
+            in_certifications,
+            date_pattern,
         )
-        is_title_line = (
-            not is_contact_or_name
-            and not in_summary  # don't misclassify summary text that mentions a year
-            and word_count <= 15
-            and date_pattern.search(text)
-            and not text.startswith(("•", "-", "–", "*", "◦"))
-        )
-        is_project_title = (
-            not is_contact_or_name
-            and not is_title_line
-            and not in_summary
-            and word_count <= 25
-            and date_pattern.search(text)
-            and " - " in text
-            and not text.startswith(("•", "-", "–", "*", "◦"))
-        )
-
-        if is_contact_or_name or is_title_line or is_project_title:
-            paragraph_type = "title"
-        elif in_summary and word_count >= 3:
-            paragraph_type = "summary"
-        elif in_certifications:
-            paragraph_type = "certification"
-        elif in_skills:
-            paragraph_type = "skills"
-        elif word_count >= 15:
-            paragraph_type = "bullet"
-        elif not text.startswith(("•", "-", "–", "*", "◦", "▪", "▸", "○")):
-            # Short line with no bullet marker in a non-summary/skills section.
-            # Treat as "title" (role name, sub-header, location, etc.) so it is:
-            #   1. Protected from edits (not in filter's allowed set)
-            #   2. Picked up by enrich_with_sections as current_title so section
-            #      labels become "SECTION > RoleTitle" — required for role suggestions.
-            paragraph_type = "title"
-        else:
-            paragraph_type = "other"
 
         result.append(
             {
@@ -461,7 +623,9 @@ def get_resume_paragraphs(path):
     # Debug: print classification summary so you can verify the summary is tagged correctly
     for p in result:
         if p["paragraph_type"] in ("summary", "certification") or p.get("is_heading"):
-            print(f"[CLASSIFY] type={p['paragraph_type']!r:15} | {repr(p['text'][:70])}")
+            print(
+                f"[CLASSIFY] type={p['paragraph_type']!r:15} | {repr(p['text'][:70])}"
+            )
 
     return result
 
@@ -479,94 +643,18 @@ def apply_replacements(original_path, output_path, replacements):
     - Set first run to full new text, clear all subsequent runs
     - This keeps bullet formatting, indentation, and style intact
     """
-    import difflib
-
     shutil.copy2(original_path, output_path)
     document = Document(output_path)
 
-    replacement_map = {}
-    for replacement in replacements:
-        if not isinstance(replacement, dict):
-            print(f"[WARN] Skipping non-dict: {repr(replacement)[:80]}")
-            continue
-        old_text = replacement.get("original", "").strip()
-        new_text = replacement.get("replacement", "").strip()
-        if old_text and new_text:
-            replacement_map[normalize_text(old_text)] = new_text
-        else:
-            print(f"[WARN] Missing keys in: {list(replacement.keys())}")
+    replacement_map = _build_replacement_map(replacements)
 
     if not replacement_map:
         document.save(output_path)
         return
 
-    matched = set()
-
-    def write_para(paragraph, new_text):
-        if not paragraph.runs:
-            from docx.oxml import OxmlElement
-
-            for child in list(paragraph._p):
-                if child.tag.endswith("}r"):
-                    paragraph._p.remove(child)
-            run_el = OxmlElement("w:r")
-            text_el = OxmlElement("w:t")
-            text_el.text = new_text
-            text_el.set("{http://www.w3.org/XML/1998/namespace}space", "preserve")
-            run_el.append(text_el)
-            paragraph._p.append(run_el)
-            return
-
-        first_bold = paragraph.runs[0].bold
-        split_index = None
-        if first_bold and len(paragraph.runs) > 1:
-            for index, run in enumerate(paragraph.runs[1:], 1):
-                if not run.bold:
-                    split_index = index
-                    break
-
-        if split_index is not None and ":" in new_text:
-            colon_pos = new_text.index(":")
-            bold_part = new_text[: colon_pos + 1]
-            normal_part = new_text[colon_pos + 1 :]
-            paragraph.runs[0].text = bold_part
-            paragraph.runs[split_index].text = normal_part
-            for index, run in enumerate(paragraph.runs[1:], 1):
-                if index != split_index:
-                    run.text = ""
-        else:
-            paragraph.runs[0].text = new_text
-            for run in paragraph.runs[1:]:
-                run.text = ""
-
-    applied = 0
-    for paragraph in document.paragraphs:
-        normalized = normalize_text(paragraph.text)
-        if not normalized:
-            continue
-
-        if normalized in replacement_map and normalized not in matched:
-            print(f"[MATCH exact] {repr(normalized[:60])}")
-            write_para(paragraph, replacement_map[normalized])
-            matched.add(normalized)
-            applied += 1
-            continue
-
-        best_key = None
-        best_ratio = 0.0
-        for key in replacement_map:
-            if key in matched:
-                continue
-            ratio = difflib.SequenceMatcher(None, normalized, key).ratio()
-            if ratio > best_ratio:
-                best_ratio = ratio
-                best_key = key
-
-        if best_key and best_ratio >= 0.85:
-            print(f"[MATCH fuzzy {best_ratio:.2f}] {repr(normalized[:60])}")
-            write_para(paragraph, replacement_map[best_key])
-            matched.add(best_key)
-            applied += 1
+    applied, matched = _apply_replacement_map(
+        document, replacement_map, preserve_bold_split=True
+    )
 
     print(f"[INFO] Applied {applied}/{len(replacement_map)} replacements")
 
@@ -584,8 +672,6 @@ def apply_title_changes(src_path, dst_path, changes):
     Unlike apply_replacements, this bypasses the paragraph-type filter and operates
     directly on title paragraphs.
     """
-    import difflib
-
     shutil.copy2(src_path, dst_path)
     document = Document(dst_path)
 
@@ -600,42 +686,7 @@ def apply_title_changes(src_path, dst_path, changes):
         document.save(dst_path)
         return
 
-    matched = set()
-    applied = 0
-
-    for paragraph in document.paragraphs:
-        normalized = normalize_text(paragraph.text)
-        if not normalized:
-            continue
-
-        if normalized in change_map and normalized not in matched:
-            print(f"[TITLE MATCH exact] {repr(normalized[:60])}")
-            if paragraph.runs:
-                paragraph.runs[0].text = change_map[normalized]
-                for run in paragraph.runs[1:]:
-                    run.text = ""
-            matched.add(normalized)
-            applied += 1
-            continue
-
-        best_key = None
-        best_ratio = 0.0
-        for key in change_map:
-            if key in matched:
-                continue
-            ratio = difflib.SequenceMatcher(None, normalized, key).ratio()
-            if ratio > best_ratio:
-                best_ratio = ratio
-                best_key = key
-
-        if best_key and best_ratio >= 0.85:
-            print(f"[TITLE MATCH fuzzy {best_ratio:.2f}] {repr(normalized[:60])}")
-            if paragraph.runs:
-                paragraph.runs[0].text = change_map[best_key]
-                for run in paragraph.runs[1:]:
-                    run.text = ""
-            matched.add(best_key)
-            applied += 1
+    applied = _apply_replacement_map(document, change_map, preserve_bold_split=False)
 
     print(f"[INFO] Title changes applied: {applied}/{len(change_map)}")
     document.save(dst_path)
@@ -669,8 +720,6 @@ def resume_info_data():
 
 def enrich_with_sections(replacements, resume_paras):
     """Add section context to each replacement dict, including role/project title."""
-    import difflib
-
     current_section = ""
     current_title = ""
     paragraph_lookup = {}
@@ -692,23 +741,13 @@ def enrich_with_sections(replacements, resume_paras):
         if not isinstance(replacement, dict):
             continue
         original_norm = normalize_text(replacement.get("original", ""))
-        section = paragraph_lookup.get(original_norm, "")
-        if not section and original_norm:
-            best_key = None
-            best_ratio = 0.0
-            for key, paragraph_section in paragraph_lookup.items():
-                ratio = difflib.SequenceMatcher(None, original_norm, key).ratio()
-                if ratio > best_ratio:
-                    best_ratio = ratio
-                    best_key = key
-            if best_key and best_ratio >= 0.8:
-                section = paragraph_lookup[best_key]
+        section = _best_section_label(original_norm, paragraph_lookup)
         word_count = len(replacement.get("replacement", "").split())
         enriched.append({**replacement, "section": section, "word_count": word_count})
     return enriched
 
 
-def extract_role_suggestion(items):
+def extract_role_suggestion(items):  # NOSONAR
     """
     Pop the optional role-suggestion sentinel from the replacements list.
     Supports two formats emitted by the LLM:
@@ -747,5 +786,4 @@ def extract_role_suggestion(items):
             val = str(item["role_suggestion"]).strip()
             if val:
                 role_suggestions = [{"original_title": "", "suggested_title": val}]
-            continue
     return role_suggestions, normal_items

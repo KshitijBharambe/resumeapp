@@ -49,6 +49,12 @@ INDUSTRY CONTEXT:
 - Identify the company's industry sector from the JD (e.g., fintech, healthtech, e-commerce, SaaS, defense, etc.).
 - Adapt language, framing, and emphasis to resonate with that sector. For example: emphasize compliance/regulation for fintech, patient outcomes for healthtech, scale/throughput for e-commerce, security clearance for defense.
 - Where the candidate's experience maps to the target industry, highlight that connection explicitly. Where it doesn't map directly, frame transferable skills using the industry's vocabulary.
+- Use industry-specific impact language:
+  - For example:
+    - DevOps/Cloud: uptime, reliability, scalability, infrastructure as code, observability
+    - SaaS: multi-tenant systems, performance, user scale
+    - Fintech: compliance, risk, transaction integrity
+    - Security: threat detection, vulnerability mitigation, risk reduction
 
 REWRITING AGGRESSIVENESS by relevance:
 - HIGH relevance bullet (already matches JD well): Skip it or make minimal keyword polish only.
@@ -64,6 +70,8 @@ ROLE SUGGESTION (PER EXPERIENCE):
 - "suggested_title" must be truthful given the candidate's actual work — no invented seniority or specialisation.
 - Omit any experience where the existing title already aligns with the target narrative.
 - If no role changes are needed for any experience, omit the role_suggestions object entirely.
+- Only suggest a new title if there is a clear mismatch between the original title and the rewritten bullet narrative.
+- Do not suggest changes for minor wording improvements or stylistic alignment.
 
 SKILLS LINE FILTERING:
 - REMOVE skills that are irrelevant to the target JD. Do not just reorder — actively drop skills that would confuse an ATS or recruiter scanning for the target role.
@@ -73,7 +81,11 @@ SKILLS LINE FILTERING:
 - NEVER repeat the same skill across multiple skill categories. Each skill/technology/tool must appear in EXACTLY ONE category line. Before finalizing skills lines, cross-check all categories and deduplicate. If a skill fits multiple categories, place it in the most specific one.
 
 HARD CONSTRAINTS:
-- One-to-one replacements only. Every "original" must be copied character-for-character from the resume. No new bullets, no deletions, no reordering.
+- One-to-one replacements only. Every "original" must be copied character-for-character from the resume.
+- Maintain one-to-one replacements by default.
+- However, if two bullets are clearly redundant or dilute the narrative, you may merge them into a single stronger replacement mapped to one of the originals.
+- Avoid introducing entirely new bullets unless necessary to preserve coherence after merging.
+- Do not reorder paragraphs.
 - PARAGRAPH SCOPE: Only output {"original", "replacement"} pairs for paragraphs where paragraph_type is "bullet", "summary", or "skills". NEVER include paragraphs with paragraph_type "title", "heading", "other", or "certification" — these contain dates, company names, role titles, section headers, contact info, and certifications that must remain structurally unchanged. Violating this corrupts the resume layout.
 - CERTIFICATIONS ARE IMMUTABLE: Any paragraph with paragraph_type "certification" must never be touched, reordered, or removed. Certification entries are sacred — do not include them in your output under any circumstances.
 - The only exception to paragraph scope is the optional {"role_suggestions": [...]} object (no "original"/"replacement" keys) as the very first item, as described in ROLE SUGGESTION above.
@@ -81,6 +93,13 @@ HARD CONSTRAINTS:
 - Never fabricate metrics, technologies, tools, or certifications the candidate hasn't listed.
 - Preserve every existing number, percentage, and metric exactly.
 - Output ONLY a raw JSON array — no markdown fences, no prose, no explanation.
+
+CONFLICT RESOLUTION RULE:
+- If any constraints conflict (e.g., replacement count vs narrative clarity, or one-to-one replacement vs meaningful improvement), prioritize:
+  1. Narrative coherence across the resume
+  2. Alignment with the target JD
+  3. Clarity and impact of bullet points
+- In such cases, minor deviations (e.g., slightly fewer replacements) are acceptable if they significantly improve overall resume quality.
 
 WRITING RULES:
 - Bullets: max 32 words. Open with a strong past-tense action verb.

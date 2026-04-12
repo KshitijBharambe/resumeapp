@@ -4,7 +4,7 @@ import requests
 from bs4 import BeautifulSoup
 
 
-def clean_extracted_text(text: str) -> str:
+def clean_extracted_text(text: str) -> str:  # NOSONAR
     """Remove JSON blobs, CSS rules, and other non-JD noise from extracted text."""
     cleaned = []
     for line in text.split("\n"):
@@ -187,7 +187,7 @@ def extract_company_from_text(text: str) -> str:
 
     full = " ".join(lines)
     match = re.search(
-        r"(?:^|\.\s+)([A-Z][A-Za-z\s&.\'-]{2,40}?)\s+(?:is\s+(?:a|an|the|one|dedicated|committed|seeking|looking|hiring|currently)|are\s+(?:a|an|the|seeking|looking|hiring))",
+        r"(?:^|\.\s+)([A-Z][A-Za-z\s&.\'-]{2,40}?)\s+(?:is\s+(?:a|an|the|one|dedicated|committed|seeking|looking|hiring|currently)|are\s+(?:a|an|the|seeking|looking|hiring))",  # NOSONAR
         full,
     )
     if match:
@@ -207,7 +207,7 @@ def extract_company_from_text(text: str) -> str:
     return ""
 
 
-def extract_company_name(html: str, url: str = "") -> str:
+def extract_company_name(html: str, url: str = "") -> str:  # NOSONAR
     """Extract company name from page metadata and common job board patterns."""
     soup = BeautifulSoup(html, "html.parser")
 

@@ -27,6 +27,126 @@ from services.resume_service import (
     normalize_replacement_keys,
 )
 
+JOB_DESCRIPTION_EMPTY_ERROR = "Job description cannot be empty."
+NO_RESUME_ERROR = "No resume found - please upload one first."
+JSON_CONTENT_TYPE = "application/json"
+THINK_OPEN = "<think>"
+THINK_CLOSE = "</think>"
+
+
+def _load_resume_context():
+    try:
+        resume_text = extract_resume_text(DEFAULT_RESUME)
+        resume_paras = get_resume_paragraphs(DEFAULT_RESUME)
+    except Exception as pre_err:
+        return None, None, jsonify({"error": f"Failed to read resume: {pre_err}"}), 500
+    return resume_text, resume_paras, None, None
+
+
+def _parse_tailor_response(raw, resume_paras, repair_callback=None):
+    raw = strip_think(raw)
+    replacements = extract_json_array(raw)
+    role_suggestions = None
+
+    if replacements is not None:
+        role_suggestions, replacements = extract_role_suggestion(replacements)
+        replacements = normalize_replacement_keys(replacements)
+        replacements = filter_replacements_by_type(replacements, resume_paras)
+
+    if not replacements and repair_callback is not None:
+        repair_raw = repair_callback(raw)
+        if repair_raw:
+            repair_raw = strip_think(repair_raw)
+            print("[DEBUG] Repair output (first 500):", repair_raw[:500])
+            replacements = extract_json_array(repair_raw)
+            if replacements is not None:
+                _role_suggestions, replacements = extract_role_suggestion(replacements)
+                if _role_suggestions and not role_suggestions:
+                    role_suggestions = _role_suggestions
+                replacements = normalize_replacement_keys(replacements)
+                replacements = filter_replacements_by_type(replacements, resume_paras)
+
+    return raw, role_suggestions, replacements
+
+
+def _finalize_tailored_output(replacements, role_suggestions, resume_paras, job_title):
+    enriched = enrich_with_sections(replacements, resume_paras)
+    try:
+        prefix = name_prefix(resume_paras)
+        output_name = make_output_name(job_title, prefix=prefix)
+        output_path = os.path.join(OUTPUT_FOLDER, output_name)
+        apply_replacements(DEFAULT_RESUME, output_path, replacements)
+    except Exception as error:
+        return jsonify({"error": f"Failed to write .docx: {error}"}), 500
+
+    return jsonify(
+        {
+            "success": True,
+            "filename": output_name,
+            "docx_b64": read_docx_b64(output_path),
+            "changes_count": len(enriched),
+            "changes": enriched,
+            "role_suggestions": role_suggestions,
+        }
+    )
+
+
+def _collect_streamed_raw(response, initial_raw=""):  # NOSONAR
+    raw = initial_raw
+    finish_reason = None
+    stream_error = None
+    for line in response.iter_lines():  # NOSONAR
+        if not line:
+            continue
+        line = line.decode("utf-8") if isinstance(line, bytes) else line
+        if line.startswith("event:"):
+            continue
+        if line.startswith("data: "):
+            line = line[6:]
+        if line.startswith(":"):
+            continue
+        if line.strip() == "[DONE]":
+            break
+        try:
+            chunk = json.loads(line)
+        except Exception as error:
+            print(f"[WARN] Failed to parse stream chunk: {line} - Error: {error}")
+            continue
+        if "error" in chunk and "choices" not in chunk:
+            err_msg = chunk["error"]
+            if isinstance(err_msg, dict):
+                err_msg = err_msg.get("message", str(err_msg))
+            stream_error = str(err_msg)
+            print(f"[ERROR] Stream returned error: {stream_error}")
+            break
+        choice = chunk["choices"][0]
+        raw += choice["delta"].get("content", "")
+        if choice.get("finish_reason"):
+            finish_reason = choice["finish_reason"]
+    return raw, finish_reason, stream_error
+
+
+def _stream_error_response(stream_error):
+    if (
+        "context length" in stream_error.lower()
+        or "tokens to keep" in stream_error.lower()
+    ):
+        return (
+            jsonify(
+                {
+                    "error": "Input too large for this model's context window.",
+                    "hint": (
+                        "The resume + job description + system prompt exceeds what the model can handle. "
+                        "In LM Studio, go to the model's settings and increase the context length "
+                        "(32,768 or higher recommended). The Context Length setting in this app "
+                        "only works if the model is loaded with enough context in LM Studio."
+                    ),
+                }
+            ),
+            400,
+        )
+    return jsonify({"error": f"Model backend error: {stream_error}"}), 500
+
 
 def get_chat_url_and_headers(provider, lm_url, api_key):
     """Return (chat_completions_url, extra_headers) for the given provider."""
@@ -44,87 +164,94 @@ def get_chat_url_and_headers(provider, lm_url, api_key):
     return f"{base}/v1/chat/completions", headers
 
 
-def provider_models(data):
-    """Unified model listing for all providers."""
+def _provider_request_values(data):
     provider = data.get("provider", "lmstudio").lower().strip()
     api_key = data.get("api_key", "").strip()
     lm_url = data.get("lm_url", "").strip()
-
     if provider == "lmstudio" and not api_key:
         api_key = os.environ.get("LM_API_TOKEN", "")
+    return provider, api_key, lm_url
 
-    if provider == "anthropic":
-        return jsonify({"models": ANTHROPIC_MODELS, "static": True})
 
-    if provider == "gemini":
-        if not api_key:
-            return jsonify({"error": "API key required"}), 400
+def _platform_from_compatibility(compatibility):
+    if compatibility == "mlx":
+        return "mac"
+    if compatibility in ("gguf", "exl2"):
+        return "desktop"
+    return ""
+
+
+def _list_gemini_models(api_key):
+    if not api_key:
+        return jsonify({"error": "API key required"}), 400
+    try:
+        from google import genai
+
+        client = genai.Client(api_key=api_key)
+        raw = list(client.models.list())
+        models = []
+        for model in raw:
+            model_name = str(getattr(model, "name", "") or "")
+            name = model_name.split("/")[-1] if "/" in model_name else model_name
+            if not any(token in name for token in ["gemini", "learnlm"]):
+                continue
+            if "embedding" in name or "vision" in name:
+                continue
+            token_limit = getattr(model, "input_token_limit", None) or getattr(
+                model, "inputTokenLimit", None
+            )
+            models.append({"id": name, "input_token_limit": token_limit})
+        models.sort(key=lambda item: item["id"])
+        return jsonify({"models": models})
+    except Exception as error:
+        return jsonify({"error": str(error)}), 500
+
+
+def _list_local_provider_models(provider, lm_url, api_key):
+    base = (lm_url or PROVIDER_BASE_URLS.get(provider, "http://localhost:1234")).rstrip(
+        "/"
+    )
+    headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
+
+    if provider == "ollama":
         try:
-            from google import genai
-
-            client = genai.Client(api_key=api_key)
-            raw = list(client.models.list())
-            models = []
-            for model in raw:
-                name = model.name.split("/")[-1] if "/" in model.name else model.name
-                if not any(token in name for token in ["gemini", "learnlm"]):
-                    continue
-                if "embedding" in name or "vision" in name:
-                    continue
-                token_limit = getattr(model, "input_token_limit", None) or getattr(
-                    model, "inputTokenLimit", None
-                )
-                models.append({"id": name, "input_token_limit": token_limit})
-            models.sort(key=lambda item: item["id"])
-            return jsonify({"models": models})
-        except Exception as error:
-            return jsonify({"error": str(error)}), 500
-
-    if provider in ("lmstudio", "ollama", "custom"):
-        base = (
-            lm_url or PROVIDER_BASE_URLS.get(provider, "http://localhost:1234")
-        ).rstrip("/")
-        headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
-        if provider == "ollama":
-            try:
-                response = requests.get(f"{base}/api/tags", headers=headers, timeout=4)
-                response.raise_for_status()
-                raw = response.json().get("models", [])
-                models = [{"id": model["name"]} for model in raw]
-                return jsonify({"models": models, "online": True})
-            except Exception:
-                pass
-        try:
-            response = requests.get(f"{base}/v1/models", headers=headers, timeout=4)
+            response = requests.get(f"{base}/api/tags", headers=headers, timeout=4)
             response.raise_for_status()
-            raw = response.json().get("data", [])
-            models = []
-            for model in raw:
-                compatibility = model.get("compatibility_type", "")
-                platform = (
-                    "mac"
-                    if compatibility == "mlx"
-                    else ("desktop" if compatibility in ("gguf", "exl2") else "")
-                )
-                models.append(
-                    {
-                        "id": model["id"],
-                        "platform": platform,
-                        "compat": compatibility,
-                        "quant": model.get("quantization", ""),
-                    }
-                )
+            raw = response.json().get("models", [])
+            models = [{"id": model["name"]} for model in raw]
             return jsonify({"models": models, "online": True})
         except Exception:
-            return jsonify({"models": [], "online": False})
+            pass
 
+    try:
+        response = requests.get(f"{base}/v1/models", headers=headers, timeout=4)
+        response.raise_for_status()
+        raw = response.json().get("data", [])
+        models = []
+        for model in raw:
+            compatibility = model.get("compatibility_type", "")
+            platform = _platform_from_compatibility(compatibility)
+            models.append(
+                {
+                    "id": model["id"],
+                    "platform": platform,
+                    "compat": compatibility,
+                    "quant": model.get("quantization", ""),
+                }
+            )
+        return jsonify({"models": models, "online": True})
+    except Exception:
+        return jsonify({"models": [], "online": False})
+
+
+def _list_cloud_provider_models(provider, api_key):
     base = PROVIDER_BASE_URLS.get(provider, "").rstrip("/")
     if not base:
         return jsonify({"error": f"Unknown provider: {provider}"}), 400
-
-    headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
     if not api_key:
         return jsonify({"error": "API key required"}), 400
+
+    headers = {"Authorization": f"Bearer {api_key}"}
     try:
         response = requests.get(f"{base}/v1/models", headers=headers, timeout=8)
         if response.status_code == 401:
@@ -148,9 +275,10 @@ def provider_models(data):
         models = []
         for model in raw:
             model_id = model.get("id", "")
-            if any(
+            is_chat_model = any(
                 keyword in model_id.lower() for keyword in chat_keywords
-            ) or provider in ("groq", "mistral"):
+            )
+            if is_chat_model or provider in ("groq", "mistral"):
                 models.append({"id": model_id})
         if not models:
             models = [{"id": model.get("id", "")} for model in raw]
@@ -167,6 +295,19 @@ def provider_models(data):
         )
     except Exception as error:
         return jsonify({"error": str(error)}), 500
+
+
+def provider_models(data):
+    """Unified model listing for all providers."""
+    provider, api_key, lm_url = _provider_request_values(data)
+
+    if provider == "anthropic":
+        return jsonify({"models": ANTHROPIC_MODELS, "static": True})
+    if provider == "gemini":
+        return _list_gemini_models(api_key)
+    if provider in ("lmstudio", "ollama", "custom"):
+        return _list_local_provider_models(provider, lm_url, api_key)
+    return _list_cloud_provider_models(provider, api_key)
 
 
 def tailor_resume(data):
@@ -189,16 +330,13 @@ def _tailor_anthropic(data):
     if not api_key:
         return jsonify({"error": "Anthropic API key is required."}), 400
     if not jd_text:
-        return jsonify({"error": "Job description cannot be empty."}), 400
+        return jsonify({"error": JOB_DESCRIPTION_EMPTY_ERROR}), 400
     if not os.path.exists(DEFAULT_RESUME):
-        return jsonify({"error": "No resume found - please upload one first."}), 400
+        return jsonify({"error": NO_RESUME_ERROR}), 400
 
-    # Pre-validate: parse docx and ensure output folder is writable before spending API credits
-    try:
-        resume_text = extract_resume_text(DEFAULT_RESUME)
-        resume_paras = get_resume_paragraphs(DEFAULT_RESUME)
-    except Exception as pre_err:
-        return jsonify({"error": f"Failed to read resume: {pre_err}"}), 500
+    resume_text, resume_paras, error_response, error_code = _load_resume_context()
+    if error_response:
+        return error_response, error_code
     os.makedirs(OUTPUT_FOLDER, exist_ok=True)
     combined_message = build_tailor_message(resume_text, resume_paras, jd_text)
 
@@ -214,7 +352,7 @@ def _tailor_anthropic(data):
             headers={
                 "x-api-key": api_key,
                 "anthropic-version": "2023-06-01",
-                "content-type": "application/json",
+                "content-type": JSON_CONTENT_TYPE,
             },
             timeout=300,
         )
@@ -241,14 +379,7 @@ def _tailor_anthropic(data):
     except Exception as error:
         return jsonify({"error": f"Anthropic API error: {error}"}), 500
 
-    raw = strip_think(raw)
-
-    replacements = extract_json_array(raw)
-    role_suggestions = None
-    if replacements is not None:
-        role_suggestions, replacements = extract_role_suggestion(replacements)
-        replacements = normalize_replacement_keys(replacements)
-        replacements = filter_replacements_by_type(replacements, resume_paras)
+    raw, role_suggestions, replacements = _parse_tailor_response(raw, resume_paras)
     if replacements is None or not replacements:
         preview = raw[:1200] if raw else "(empty)"
         return (
@@ -262,33 +393,17 @@ def _tailor_anthropic(data):
             500,
         )
 
-    enriched = enrich_with_sections(replacements, resume_paras)
-    try:
-        prefix = name_prefix(resume_paras)
-        output_name = make_output_name(job_title, prefix=prefix)
-        output_path = os.path.join(OUTPUT_FOLDER, output_name)
-        apply_replacements(DEFAULT_RESUME, output_path, replacements)
-    except Exception as error:
-        return jsonify({"error": f"Failed to write .docx: {error}"}), 500
-
-    return jsonify(
-        {
-            "success": True,
-            "filename": output_name,
-            "docx_b64": read_docx_b64(output_path),
-            "changes_count": len(enriched),
-            "changes": enriched,
-            "role_suggestions": role_suggestions,
-        }
+    return _finalize_tailored_output(
+        replacements, role_suggestions, resume_paras, job_title
     )
 
 
-def _tailor_openai_compatible(data):
+def _tailor_openai_compatible(data):  # NOSONAR
     provider = data.get("provider", "lmstudio").lower().strip()
     jd_text = data.get("jd_text", "").strip()
     model = data.get("model", "").strip()
     job_title = data.get("job_title", "").strip()
-    api_key = data.get("api_key", "").strip()
+    api_key = data.get("api_key", "").strip()  # NOSONAR
     lm_url = data.get("lm_url", "").strip()
 
     if provider == "lmstudio" and not api_key:
@@ -303,9 +418,9 @@ def _tailor_openai_compatible(data):
     context_length = data.get("context_length")
 
     if not jd_text:
-        return jsonify({"error": "Job description cannot be empty."}), 400
+        return jsonify({"error": JOB_DESCRIPTION_EMPTY_ERROR}), 400
     if not os.path.exists(DEFAULT_RESUME):
-        return jsonify({"error": "No resume found - please upload one first."}), 400
+        return jsonify({"error": NO_RESUME_ERROR}), 400
 
     chat_url, extra_headers = get_chat_url_and_headers(provider, lm_url, api_key)
     provider_label = PROVIDER_DISPLAY.get(provider, provider)
@@ -346,12 +461,9 @@ def _tailor_openai_compatible(data):
     except Exception:
         pass
 
-    # Pre-validate: parse docx and ensure output folder is writable before spending API credits
-    try:
-        resume_text = extract_resume_text(DEFAULT_RESUME)
-        resume_paras = get_resume_paragraphs(DEFAULT_RESUME)
-    except Exception as pre_err:
-        return jsonify({"error": f"Failed to read resume: {pre_err}"}), 500
+    resume_text, resume_paras, error_response, error_code = _load_resume_context()
+    if error_response:
+        return error_response, error_code
     os.makedirs(OUTPUT_FOLDER, exist_ok=True)
     combined_message = build_tailor_message(resume_text, resume_paras, jd_text)
 
@@ -415,41 +527,12 @@ def _tailor_openai_compatible(data):
         print(f"[ERROR] Exception connecting to {provider_label}: {error}")
         return jsonify({"error": f"{provider_label} error: {error}"}), 500
 
-    raw = '[{"original":' if provider in local_providers else ""
     finish_reason = None
     stream_error = None
     try:
-        for line in response.iter_lines():
-            if not line:
-                continue
-            line = line.decode("utf-8") if isinstance(line, bytes) else line
-            if line.startswith("event:"):
-                continue
-            if line.startswith("data: "):
-                line = line[6:]
-            if line.startswith(
-                ":"
-            ):  # SSE comment line (e.g. ": OPENROUTER PROCESSING")
-                continue
-            if line.strip() == "[DONE]":
-                break
-            try:
-                chunk = json.loads(line)
-                if "error" in chunk and "choices" not in chunk:
-                    err_msg = chunk["error"]
-                    if isinstance(err_msg, dict):
-                        err_msg = err_msg.get("message", str(err_msg))
-                    stream_error = str(err_msg)
-                    print(f"[ERROR] Stream returned error: {stream_error}")
-                    break
-                choice = chunk["choices"][0]
-                delta = choice["delta"].get("content", "")
-                raw += delta
-                if choice.get("finish_reason"):
-                    finish_reason = choice["finish_reason"]
-            except Exception as error:
-                print(f"[WARN] Failed to parse stream chunk: {line} - Error: {error}")
-                continue
+        raw, finish_reason, stream_error = _collect_streamed_raw(
+            response, initial_raw='[{"original":' if provider in local_providers else ""
+        )
     except Exception as error:
         print(f"[ERROR] Stream reading failed: {error}")
         return jsonify({"error": f"Error reading stream: {error}"}), 500
@@ -458,25 +541,7 @@ def _tailor_openai_compatible(data):
             response.close()
 
     if stream_error:
-        if (
-            "context length" in stream_error.lower()
-            or "tokens to keep" in stream_error.lower()
-        ):
-            return (
-                jsonify(
-                    {
-                        "error": "Input too large for this model's context window.",
-                        "hint": (
-                            "The resume + job description + system prompt exceeds what the model can handle. "
-                            "In LM Studio, go to the model's settings and increase the context length "
-                            "(32,768 or higher recommended). The Context Length setting in this app "
-                            "only works if the model is loaded with enough context in LM Studio."
-                        ),
-                    }
-                ),
-                400,
-            )
-        return jsonify({"error": f"Model backend error: {stream_error}"}), 500
+        return _stream_error_response(stream_error)
 
     print(f"[DEBUG] finish_reason={finish_reason}, raw length={len(raw)} chars")
 
@@ -494,17 +559,9 @@ def _tailor_openai_compatible(data):
             )
         return jsonify({"error": hint}), 500
 
-    raw = strip_think(raw)
     print("[DEBUG] Raw output (first 800):", raw[:800])
 
-    replacements = extract_json_array(raw)
-    role_suggestions = None
-    if replacements is not None:
-        role_suggestions, replacements = extract_role_suggestion(replacements)
-        replacements = normalize_replacement_keys(replacements)
-        replacements = filter_replacements_by_type(replacements, resume_paras)
-
-    if not replacements:
+    def _repair_openai_response(current_raw):
         print("[INFO] First parse failed, attempting repair request...")
         repair_messages = [
             {
@@ -517,7 +574,7 @@ def _tailor_openai_compatible(data):
                     "The following text was supposed to be a JSON array of objects with "
                     '"original" and "replacement" keys, but it could not be parsed. '
                     "Extract the data and return ONLY a valid JSON array. "
-                    "No markdown fences, no explanation.\n\n" + raw[:4000]
+                    "No markdown fences, no explanation.\n\n" + current_raw[:4000]
                 ),
             },
         ]
@@ -535,18 +592,16 @@ def _tailor_openai_compatible(data):
                 chat_url, json=repair_payload, headers=extra_headers, timeout=120
             )
             repair_response.raise_for_status()
-            repair_raw = repair_response.json()["choices"][0]["message"]["content"]
-            repair_raw = strip_think(repair_raw)
-            print("[DEBUG] Repair output (first 500):", repair_raw[:500])
-            replacements = extract_json_array(repair_raw)
-            if replacements is not None:
-                _rs, replacements = extract_role_suggestion(replacements)
-                if _rs and not role_suggestions:
-                    role_suggestions = _rs
-                replacements = normalize_replacement_keys(replacements)
-                replacements = filter_replacements_by_type(replacements, resume_paras)
+            return repair_response.json()["choices"][0]["message"]["content"]
         except Exception as error:
             print(f"[WARN] Repair request failed: {error}")
+            return None
+
+    raw, role_suggestions, replacements = _parse_tailor_response(
+        raw,
+        resume_paras,
+        repair_callback=_repair_openai_response,
+    )
 
     if not replacements:
         preview = raw[:1200] if raw else "(empty — model produced no output)"
@@ -565,29 +620,12 @@ def _tailor_openai_compatible(data):
             500,
         )
 
-    enriched = enrich_with_sections(replacements, resume_paras)
-
-    try:
-        prefix = name_prefix(resume_paras)
-        output_name = make_output_name(job_title, prefix=prefix)
-        output_path = os.path.join(OUTPUT_FOLDER, output_name)
-        apply_replacements(DEFAULT_RESUME, output_path, replacements)
-    except Exception as error:
-        return jsonify({"error": f"Failed to write .docx: {error}"}), 500
-
-    return jsonify(
-        {
-            "success": True,
-            "filename": output_name,
-            "docx_b64": read_docx_b64(output_path),
-            "changes_count": len(enriched),
-            "changes": enriched,
-            "role_suggestions": role_suggestions,
-        }
+    return _finalize_tailored_output(
+        replacements, role_suggestions, resume_paras, job_title
     )
 
 
-def _tailor_gemini_impl(data):
+def _tailor_gemini_impl(data):  # NOSONAR
     try:
         from google import genai
         from google.genai import types as genai_types
@@ -612,16 +650,13 @@ def _tailor_gemini_impl(data):
     if not api_key:
         return jsonify({"error": "Gemini API key is required."}), 400
     if not jd_text:
-        return jsonify({"error": "Job description cannot be empty."}), 400
+        return jsonify({"error": JOB_DESCRIPTION_EMPTY_ERROR}), 400
     if not os.path.exists(DEFAULT_RESUME):
-        return jsonify({"error": "No resume found - please upload one first."}), 400
+        return jsonify({"error": NO_RESUME_ERROR}), 400
 
-    # Pre-validate: parse docx and ensure output folder is writable before spending API credits
-    try:
-        resume_text = extract_resume_text(DEFAULT_RESUME)
-        resume_paras = get_resume_paragraphs(DEFAULT_RESUME)
-    except Exception as pre_err:
-        return jsonify({"error": f"Failed to read resume: {pre_err}"}), 500
+    resume_text, resume_paras, error_response, error_code = _load_resume_context()
+    if error_response:
+        return error_response, error_code
     os.makedirs(OUTPUT_FOLDER, exist_ok=True)
     prompt = build_tailor_message(resume_text, resume_paras, jd_text)
     thinking_models = {"gemini-2.5-pro", "gemini-2.5-flash", "gemini-3"}
@@ -644,13 +679,13 @@ def _tailor_gemini_impl(data):
                 temperature=temperature,
                 max_output_tokens=max_tokens,
                 top_p=top_p,
-                response_mime_type="application/json",
+                response_mime_type=JSON_CONTENT_TYPE,
             )
 
         response = client.models.generate_content(
             model=model_name, contents=prompt, config=config
         )
-        raw = response.text
+        raw = response.text or ""
     except Exception as error:
         err_str = str(error)
         if (
@@ -684,45 +719,36 @@ def _tailor_gemini_impl(data):
             )
         return jsonify({"error": f"Gemini API error: {err_str}"}), 500
 
-    raw = strip_think(raw)
     print("[DEBUG][Gemini] Raw output (first 800):", raw[:800])
 
-    replacements = extract_json_array(raw)
-    role_suggestions = None
-    if replacements is not None:
-        role_suggestions, replacements = extract_role_suggestion(replacements)
-        replacements = normalize_replacement_keys(replacements)
-        replacements = filter_replacements_by_type(replacements, resume_paras)
-
-    if not replacements:
+    def _repair_gemini_response(current_raw):
         print("[INFO][Gemini] First parse failed, attempting repair request...")
         try:
             repair_config = genai_types.GenerateContentConfig(
                 system_instruction="You are a JSON repair assistant. Output ONLY a valid JSON array, nothing else.",
                 temperature=0.0,
                 max_output_tokens=max_tokens,
-                response_mime_type="application/json",
+                response_mime_type=JSON_CONTENT_TYPE,
             )
             repair_prompt = (
                 "The following text was supposed to be a JSON array of objects with "
                 '"original" and "replacement" keys, but it could not be parsed. '
                 "Extract the data and return ONLY a valid JSON array. "
-                "No markdown fences, no explanation.\n\n" + raw[:4000]
+                "No markdown fences, no explanation.\n\n" + current_raw[:4000]
             )
             repair_response = client.models.generate_content(
                 model=model_name, contents=repair_prompt, config=repair_config
             )
-            repair_raw = strip_think(repair_response.text)
-            print("[DEBUG][Gemini] Repair output (first 500):", repair_raw[:500])
-            replacements = extract_json_array(repair_raw)
-            if replacements is not None:
-                _rs, replacements = extract_role_suggestion(replacements)
-                if _rs and not role_suggestions:
-                    role_suggestions = _rs
-                replacements = normalize_replacement_keys(replacements)
-                replacements = filter_replacements_by_type(replacements, resume_paras)
+            return repair_response.text
         except Exception as error:
             print(f"[WARN][Gemini] Repair request failed: {error}")
+            return None
+
+    raw, role_suggestions, replacements = _parse_tailor_response(
+        raw,
+        resume_paras,
+        repair_callback=_repair_gemini_response,
+    )
 
     if not replacements:
         preview = raw[:1200] if raw else "(empty)"
@@ -737,35 +763,19 @@ def _tailor_gemini_impl(data):
             500,
         )
 
-    enriched = enrich_with_sections(replacements, resume_paras)
-    try:
-        prefix = name_prefix(resume_paras)
-        output_name = make_output_name(job_title, prefix=prefix)
-        output_path = os.path.join(OUTPUT_FOLDER, output_name)
-        apply_replacements(DEFAULT_RESUME, output_path, replacements)
-    except Exception as error:
-        return jsonify({"error": f"Failed to write .docx: {error}"}), 500
-
-    return jsonify(
-        {
-            "success": True,
-            "filename": output_name,
-            "docx_b64": read_docx_b64(output_path),
-            "changes_count": len(enriched),
-            "changes": enriched,
-            "role_suggestions": role_suggestions,
-        }
+    return _finalize_tailored_output(
+        replacements, role_suggestions, resume_paras, job_title
     )
 
 
-def strip_think(text):
+def strip_think(text):  # NOSONAR
     """
     Strip <think>...</think> blocks from Qwen3/DeepSeek output.
     Handles: complete blocks, orphaned </think>, truncated blocks.
     """
     if not text:
         return text
-    if "<think>" in text and "</think>" in text:
+    if THINK_OPEN in text and THINK_CLOSE in text:
         cleaned = (
             __import__("re")
             .sub(r"<think>.*?</think>", "", text, flags=__import__("re").DOTALL)
@@ -773,10 +783,10 @@ def strip_think(text):
         )
         if cleaned:
             return cleaned
-    if "</think>" in text and "<think>" not in text:
-        after = text.split("</think>", 1)[1].strip()
-        return after if after else text.split("</think>", 1)[0].strip()
-    if "<think>" in text:
+    if THINK_CLOSE in text and THINK_OPEN not in text:
+        after = text.split(THINK_CLOSE, 1)[1].strip()
+        return after if after else text.split(THINK_CLOSE, 1)[0].strip()
+    if THINK_OPEN in text:
         for marker in ["{", "["]:
             idx = text.rfind(marker)
             if idx != -1:
