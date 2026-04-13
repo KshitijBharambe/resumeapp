@@ -2299,17 +2299,88 @@
                 👁
               </button>
             </div>
+            <div id="ats-pcfg-model">
+              <div class="label" style="margin-bottom: 0.4rem">Model</div>
+              <div class="model-row">
+                <div class="model-picker" id="ats-model-picker">
+                  <button
+                    class="model-picker-btn"
+                    id="ats-model-picker-btn"
+                    onclick="toggleATSModelDropdown()"
+                    type="button"
+                  >
+                    <span class="model-picker-label" id="ats-model-picker-label"
+                      >Select a model...</span
+                    >
+                    <span
+                      class="model-picker-tags"
+                      id="ats-model-picker-tags"
+                    ></span>
+                  </button>
+                  <div class="model-dropdown" id="ats-model-dropdown"></div>
+                </div>
+                <button
+                  class="btn btn-ghost"
+                  id="ats-load-models-btn"
+                  onclick="loadATSProviderModels()"
+                  style="white-space: nowrap; font-size: 0.68rem"
+                >
+                  Load Models
+                </button>
+              </div>
+              <input type="hidden" id="ats-model-select" value="" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Resume (ATS) -->
+        <div class="panel-card" style="margin-top: 1rem">
+          <div class="panel-label">Resume</div>
+          <div
+            id="ats-resume-card"
+            class="card"
+            style="display: none; padding: 0; border: none; background: none"
+          >
+            <div class="resume-card-row">
+              <div class="resume-icon">📄</div>
+              <div class="resume-info">
+                <div class="resume-name" id="ats-resume-name">
+                  base_resume.docx
+                </div>
+                <div id="ats-resume-meta" class="resume-meta">—</div>
+              </div>
+              <div class="resume-actions">
+                <button class="btn btn-ghost" onclick="togglePreview()">
+                  Preview
+                </button>
+                <button class="btn btn-ghost" onclick="switchATSToUpload()">
+                  Replace
+                </button>
+              </div>
+            </div>
+            <div id="ats-resume-preview" class="resume-preview"></div>
+          </div>
+          <div
+            id="ats-drop-zone"
+            class="drop-zone"
+            style="display: none; margin-top: 0"
+          >
+            <div class="drop-zone-icon">⬆</div>
+            <p><strong>Drop your .docx resume here</strong></p>
+            <p>
+              or
+              <span
+                class="link"
+                onclick="document.getElementById('ats-file-input').click()"
+                >browse files</span
+              >
+            </p>
             <input
-              type="text"
-              id="ats-model-input"
-              placeholder="Model name (e.g. qwen3-8b)"
-              oninput="saveATSCfg()"
-              style="
-                font-family: var(--font-mono);
-                font-size: 0.78rem;
-                flex: 1.5;
-                min-width: 150px;
-              "
+              type="file"
+              id="ats-file-input"
+              accept=".docx"
+              style="display: none"
+              onchange="handleATSFile(this.files[0])"
             />
           </div>
         </div>
@@ -2642,6 +2713,8 @@
       };
       const LOCAL_PROVIDERS = new Set(["lmstudio", "ollama", "custom"]);
       let selectedProviderModel = "";
+      let selectedATSModel = "";
+      let _currentATSProviderModels = [];
 
       function setProvider(p, isBoot) {
         currentProvider = p;
@@ -2945,7 +3018,11 @@
         try {
           const d = await fetch("/resume-info").then((r) => r.json());
           if (d.exists) {
-            showResumeCard(`${d.paragraphs} paragraphs · ${d.words} words`);
+            const meta = `${d.paragraphs} paragraphs · ${d.words} words`;
+            showResumeCard(meta);
+            try {
+              showATSResumeCard(meta);
+            } catch (e) {}
           } else {
             const b64 = localStorage.getItem("rt_resume_b64");
             if (b64) {
@@ -2982,7 +3059,11 @@
           const r = await fetch("/upload-resume", { method: "POST", body: fd });
           const d = await r.json();
           if (d.success) {
-            showResumeCard(`${d.paragraphs} paragraphs · ${d.words} words`);
+            const meta = `${d.paragraphs} paragraphs · ${d.words} words`;
+            showResumeCard(meta);
+            try {
+              showATSResumeCard(meta);
+            } catch (e) {}
             document.getElementById("resume-meta").title =
               "Auto-restored from browser cache";
           } else {
@@ -3000,7 +3081,11 @@
           const r = await fetch("/upload-resume", { method: "POST", body: fd });
           const d = await r.json();
           if (d.success) {
-            showResumeCard(`${d.paragraphs} paragraphs · ${d.words} words`);
+            const meta = `${d.paragraphs} paragraphs · ${d.words} words`;
+            showResumeCard(meta);
+            try {
+              showATSResumeCard(meta);
+            } catch (e) {}
             // Cache to localStorage so it survives server restarts
             const reader = new FileReader();
             reader.onload = (e) => {
@@ -3672,8 +3757,30 @@
         }
         const savedModel =
           localStorage.getItem("rt_model_" + p) || selectedProviderModel || "";
-        const modelEl = document.getElementById("ats-model-input");
-        if (modelEl) modelEl.value = savedModel;
+        const modelLabel = document.getElementById("ats-model-picker-label");
+        const modelHidden = document.getElementById("ats-model-select");
+        if (modelLabel && modelHidden) {
+          if (savedModel) {
+            modelHidden.value = savedModel;
+            modelLabel.textContent = savedModel;
+          } else {
+            modelHidden.value = "";
+            modelLabel.textContent = "Select a model...";
+          }
+        } else {
+          const modelEl = document.getElementById("ats-model-input");
+          if (modelEl) modelEl.value = savedModel;
+        }
+
+        // Auto-load models when possible (local providers or API key present)
+        try {
+          const shouldAutoLoad =
+            LOCAL_PROVIDERS.has(p) ||
+            (meta.hasKey && document.getElementById("ats-key")?.value.trim());
+          if (shouldAutoLoad) loadATSProviderModels();
+        } catch (e) {
+          // ignore
+        }
       }
 
       function saveATSCfg() {
@@ -3689,10 +3796,17 @@
           const url = document.getElementById("ats-url")?.value.trim();
           if (url) localStorage.setItem("rt_url_" + p, url);
         }
-        const model = document.getElementById("ats-model-input")?.value.trim();
+        const modelHidden = document
+          .getElementById("ats-model-select")
+          ?.value.trim();
+        const modelInput = document
+          .getElementById("ats-model-input")
+          ?.value.trim();
+        const model = modelHidden || modelInput || "";
         if (model) {
           localStorage.setItem("rt_model_" + p, model);
           selectedProviderModel = model;
+          selectedATSModel = model;
         }
       }
 
@@ -3715,8 +3829,157 @@
           ? document.getElementById("ats-url")?.value.trim() || ""
           : "";
         const model =
-          document.getElementById("ats-model-input")?.value.trim() || "";
+          document.getElementById("ats-model-select")?.value.trim() ||
+          document.getElementById("ats-model-input")?.value.trim() ||
+          "";
         return { provider: p, model, api_key, lm_url };
+      }
+
+      // ── ATS model loading (separate from Refine model picker) ──────────────
+      async function loadATSProviderModels() {
+        const p =
+          document.getElementById("ats-provider-select")?.value ||
+          currentProvider;
+        const meta = PROVIDER_META[p] || {};
+        saveATSCfg();
+        const api_key = meta.hasKey
+          ? document.getElementById("ats-key").value.trim()
+          : "";
+        const lm_url = meta.hasUrl
+          ? document.getElementById("ats-url").value.trim()
+          : "";
+        const label = document.getElementById("ats-model-picker-label");
+        if (label) label.textContent = "Loading models...";
+        try {
+          const r = await fetch("/provider-models", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ provider: p, api_key, lm_url }),
+          });
+          const d = await r.json();
+          if (!r.ok || d.error) {
+            if (label) label.textContent = d.error || "Error loading models";
+            return;
+          }
+          const models = d.models || [];
+          if (!models.length) {
+            if (label) label.textContent = "No models found";
+            return;
+          }
+          _currentATSProviderModels = models;
+          renderATSModelDropdown(models);
+          const saved =
+            localStorage.getItem("rt_model_" + p) || selectedATSModel || "";
+          const toSelect = models.find((m) => m.id === saved) || models[0];
+          if (toSelect) selectATSModel(toSelect);
+          if (meta.hasKey) {
+            // optionally show a small hint near the input by updating label
+            document.getElementById("ats-model-picker-label").title =
+              `${models.length} model${models.length !== 1 ? "s" : ""} loaded`;
+          }
+        } catch (e) {
+          if (label) label.textContent = "Connection error";
+        }
+      }
+
+      function renderATSModelDropdown(models) {
+        const dd = document.getElementById("ats-model-dropdown");
+        const selected = selectedATSModel;
+        dd.innerHTML = models
+          .map((m) => {
+            const ctx = m.input_token_limit
+              ? (m.input_token_limit >= 1000
+                  ? (m.input_token_limit / 1000).toFixed(0) + "k"
+                  : m.input_token_limit) + "ctx"
+              : m.context_length
+                ? (m.context_length >= 1000
+                    ? (m.context_length / 1000).toFixed(0) + "k"
+                    : m.context_length) + "ctx"
+                : "";
+            return `<div class="model-opt${m.id === selected ? " selected" : ""}" onclick='selectATSModel(${JSON.stringify(m)})'>${esc(m.id)}${ctx ? `<span class="mtag mtag-quant">${ctx}</span>` : ""}</div>`;
+          })
+          .join("");
+      }
+
+      function selectATSModel(m) {
+        selectedATSModel = m.id;
+        document.getElementById("ats-model-select").value = m.id;
+        document.getElementById("ats-model-picker-label").textContent = m.id;
+        const ctx = m.input_token_limit
+          ? (m.input_token_limit >= 1000
+              ? (m.input_token_limit / 1000).toFixed(0) + "k"
+              : m.input_token_limit) + "ctx"
+          : m.context_length
+            ? (m.context_length >= 1000
+                ? (m.context_length / 1000).toFixed(0) + "k"
+                : m.context_length) + "ctx"
+            : "";
+        document.getElementById("ats-model-picker-tags").innerHTML = ctx
+          ? `<span class="mtag mtag-quant">${ctx}</span>`
+          : "";
+        localStorage.setItem(
+          "rt_model_" +
+            (document.getElementById("ats-provider-select")?.value ||
+              currentProvider),
+          m.id,
+        );
+        renderATSModelDropdown(_currentATSProviderModels);
+        document.getElementById("ats-model-dropdown").classList.remove("open");
+        document
+          .getElementById("ats-model-picker-btn")
+          .classList.remove("open");
+      }
+
+      function toggleATSModelDropdown() {
+        document.getElementById("ats-model-dropdown").classList.toggle("open");
+        document
+          .getElementById("ats-model-picker-btn")
+          .classList.toggle("open");
+      }
+
+      // ── ATS resume helpers (upload + small card) ───────────────────────────
+      function showATSResumeCard(meta) {
+        const card = document.getElementById("ats-resume-card");
+        const drop = document.getElementById("ats-drop-zone");
+        if (card) card.style.display = "";
+        if (drop) drop.style.display = "none";
+        if (meta) document.getElementById("ats-resume-meta").textContent = meta;
+        resumeReady = true;
+      }
+
+      function switchATSToUpload() {
+        const card = document.getElementById("ats-resume-card");
+        const drop = document.getElementById("ats-drop-zone");
+        if (card) card.style.display = "none";
+        if (drop) drop.style.display = "";
+        resumeReady = false;
+      }
+
+      async function handleATSFile(file) {
+        if (!file) return;
+        const fd = new FormData();
+        fd.append("file", file);
+        try {
+          const r = await fetch("/upload-resume", { method: "POST", body: fd });
+          const d = await r.json();
+          if (d.success) {
+            showATSResumeCard(`${d.paragraphs} paragraphs · ${d.words} words`);
+            // Cache to localStorage like the main upload so resume survives restarts
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              localStorage.setItem(
+                "rt_resume_b64",
+                e.target.result.split(",")[1],
+              );
+              localStorage.setItem("rt_resume_name", file.name);
+            };
+            reader.readAsDataURL(file);
+          } else {
+            showATSError(d.error || "Upload failed.");
+          }
+        } catch (e) {
+          showATSError("Upload error: " + e.message);
+        }
       }
 
       async function extractJdFromUrlForATS() {

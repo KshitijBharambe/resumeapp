@@ -257,33 +257,64 @@ def _list_cloud_provider_models(provider, api_key):
         if response.status_code == 401:
             return jsonify({"error": "Invalid API key"}), 401
         response.raise_for_status()
-        raw = response.json().get("data", [])
-        chat_keywords = [
-            "gpt",
-            "claude",
-            "llama",
-            "mistral",
-            "mixtral",
-            "gemma",
-            "qwen",
-            "deepseek",
-            "command",
-            "sonar",
-            "hermes",
-            "nous",
-        ]
+        data_json = response.json() or {}
+        raw = data_json.get("data") or data_json.get("models") or []
+
+        # For OpenRouter return the full model list without chat-keyword filtering.
         models = []
-        for model in raw:
-            model_id = model.get("id", "")
-            is_chat_model = any(
-                keyword in model_id.lower() for keyword in chat_keywords
-            )
-            if is_chat_model or provider in ("groq", "mistral"):
-                models.append({"id": model_id})
-        if not models:
-            models = [{"id": model.get("id", "")} for model in raw]
-        models.sort(key=lambda item: item["id"])
-        return jsonify({"models": models})
+        if provider == "openrouter":
+            for model in raw:
+                if isinstance(model, dict):
+                    model_id = model.get("id") or model.get("name") or ""
+                else:
+                    model_id = str(model)
+                if model_id:
+                    models.append({"id": model_id})
+        else:
+            chat_keywords = [
+                "gpt",
+                "claude",
+                "llama",
+                "mistral",
+                "mixtral",
+                "gemma",
+                "qwen",
+                "deepseek",
+                "command",
+                "sonar",
+                "hermes",
+                "nous",
+            ]
+            for model in raw:
+                if isinstance(model, dict):
+                    model_id = model.get("id", "")
+                else:
+                    model_id = str(model)
+                is_chat_model = any(
+                    keyword in model_id.lower() for keyword in chat_keywords
+                )
+                if is_chat_model or provider in ("groq", "mistral"):
+                    if model_id:
+                        models.append({"id": model_id})
+            if not models:
+                for model in raw:
+                    if isinstance(model, dict):
+                        mid = model.get("id", "")
+                    else:
+                        mid = str(model)
+                    if mid:
+                        models.append({"id": mid})
+
+        # Deduplicate and sort
+        seen = set()
+        deduped = []
+        for m in models:
+            mid = m.get("id", "")
+            if mid and mid not in seen:
+                seen.add(mid)
+                deduped.append({"id": mid})
+        deduped.sort(key=lambda item: item["id"])
+        return jsonify({"models": deduped})
     except requests.exceptions.ConnectionError:
         return (
             jsonify(

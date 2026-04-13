@@ -11,3 +11,9 @@ __pycache__/
 .agent/skills/frontend-design
 .agent/skills/mcp-integration
 .env.local
+sonar-project.properties
+.vscode/settings.json
+.gitignore
+.serena
+name suggestion.md
+.gitignore
