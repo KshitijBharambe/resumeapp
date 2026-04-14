@@ -13,4 +13,4 @@ jobs:
           git pull origin main
       - name: Restart Service (Optional)
         run: |
-          uv run pythonapp.py
+          uv run python app.py
