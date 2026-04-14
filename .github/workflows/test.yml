@@ -1,0 +1,11 @@
+name: Connectivity Test
+on: [push]
+
+jobs:
+  check-connection:
+    runs-on: self-hosted
+    steps:
+      - name: Who am I?
+        run: whoami
+      - name: System Check
+        run: hostname
