@@ -14,3 +14,4 @@ jobs:
       - name: Restart Service (Optional)
         run: |
           uv run python app.py
+        working-directory: "C:/Users/kshit/Downloads/resumeapp"
