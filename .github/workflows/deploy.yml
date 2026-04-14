@@ -17,5 +17,5 @@ jobs:
           pm2 delete resume-app 2>$null || $null
 
           # Start the new one
-          pm2 start "uv run python app.py" --name "resume-app"
+          pm2 start app.py --name "resume-app" --interpreter "uv" --interpreter-args "run python"
         working-directory: "C:/Users/kshit/Downloads/resumeapp"
