@@ -13,6 +13,9 @@ jobs:
           git pull origin main
       - name: Deploy with PM2
         run: |
-          pm2 delete resume-app || true
+          # Try to delete the old process, but don't crash if it doesn't exist
+          pm2 delete resume-app 2>$null || $null
+
+          # Start the new one
           pm2 start "uv run python app.py" --name "resume-app"
         working-directory: "C:/Users/kshit/Downloads/resumeapp"
