@@ -11,10 +11,5 @@ jobs:
         run: |
           cd "C:\Users\kshit\Downloads\resumeapp"
           git pull origin main
-      - name: Deploy with PM2
-        env:
-          GITHUB_ACTIONS: "false"
-        run: |
-          pm2 delete resume-app 2>$null || $null
-          pm2 start app.py --name "resume-app" --interpreter "uv" --interpreter-args "run python"
-        working-directory: "C:/Users/kshit/Downloads/resumeapp"
+      - name: Deploy
+        run: cmd /c start /b C:\Users\kshit\Downloads\resumeapp\deploy.bat
