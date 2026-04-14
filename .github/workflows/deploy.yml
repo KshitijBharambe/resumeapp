@@ -1,0 +1,16 @@
+name: Remote Deploy
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    steps:
+      - name: Pull latest code
+        run: |
+          cd "C:\Users\kshit\Downloads\resumeapp"
+          git pull origin main
+      - name: Restart Service (Optional)
+        run: |
+          uv run app.py
