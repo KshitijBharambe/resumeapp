@@ -12,5 +12,5 @@ jobs:
           cd "C:\Users\kshit\Downloads\resumeapp"
           git pull origin main
       - name: Restart Service (Optional)
-        run: Run app
+        run: |
           uv run pythonapp.py
