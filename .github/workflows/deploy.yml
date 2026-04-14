@@ -12,10 +12,9 @@ jobs:
           cd "C:\Users\kshit\Downloads\resumeapp"
           git pull origin main
       - name: Deploy with PM2
+        env:
+          GITHUB_ACTIONS: "false"
         run: |
-          # Try to delete the old process, but don't crash if it doesn't exist
           pm2 delete resume-app 2>$null || $null
-
-          # Start the new one
           pm2 start app.py --name "resume-app" --interpreter "uv" --interpreter-args "run python"
         working-directory: "C:/Users/kshit/Downloads/resumeapp"
