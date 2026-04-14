@@ -11,7 +11,8 @@ jobs:
         run: |
           cd "C:\Users\kshit\Downloads\resumeapp"
           git pull origin main
-      - name: Restart Service (Optional)
+      - name: Deploy with PM2
         run: |
-          uv run python app.py
+          pm2 delete resume-app || true
+          pm2 start "uv run python app.py" --name "resume-app"
         working-directory: "C:/Users/kshit/Downloads/resumeapp"
