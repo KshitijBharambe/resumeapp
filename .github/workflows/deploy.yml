@@ -12,4 +12,4 @@ jobs:
           cd "C:\Users\kshit\Downloads\resumeapp"
           git pull origin main
       - name: Deploy
-        run: cmd /c start /b C:\Users\kshit\Downloads\resumeapp\deploy.bat
+        run: pm2 reload resume-app
